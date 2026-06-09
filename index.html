@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ロックンロールマップ</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0d0d0d;
+      color: #f0f0f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1a1a1a, #2a0a0a);
+      border-bottom: 2px solid #cc3333;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    header h1 {
+      font-size: 1.6rem;
+      letter-spacing: 0.05em;
+      color: #ff4444;
+      text-shadow: 0 0 12px rgba(255,68,68,0.5);
+    }
+
+    header .subtitle {
+      font-size: 0.85rem;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    .guitar-icon { font-size: 2rem; }
+
+    .filter-bar {
+      background: #111;
+      padding: 8px 24px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      flex-shrink: 0;
+      border-bottom: 1px solid #222;
+    }
+
+    .filter-bar label {
+      font-size: 0.78rem;
+      color: #888;
+      margin-right: 4px;
+    }
+
+    /* 検索バー */
+    .search-bar {
+      background: #111;
+      padding: 8px 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+      border-bottom: 1px solid #222;
+    }
+
+    .search-wrapper {
+      position: relative;
+      flex: 1;
+      max-width: 420px;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #666;
+      font-size: 0.9rem;
+      pointer-events: none;
+    }
+
+    #searchInput {
+      width: 100%;
+      background: #1a1a1a;
+      border: 1px solid #444;
+      border-radius: 20px;
+      color: #f0f0f0;
+      font-size: 0.85rem;
+      padding: 6px 36px 6px 32px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    #searchInput::placeholder { color: #555; }
+    #searchInput:focus { border-color: #cc3333; }
+
+    .search-clear {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #666;
+      cursor: pointer;
+      font-size: 0.9rem;
+      display: none;
+      background: none;
+      border: none;
+      padding: 0;
+      line-height: 1;
+    }
+
+    .search-clear:hover { color: #ff4444; }
+
+    .search-result-count {
+      font-size: 0.78rem;
+      color: #888;
+      white-space: nowrap;
+    }
+
+    /* 検索結果ドロップダウン */
+    .search-dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: #1a1a1a;
+      border: 1px solid #444;
+      border-radius: 8px;
+      max-height: 260px;
+      overflow-y: auto;
+      z-index: 2000;
+      display: none;
+    }
+
+    .search-dropdown.open { display: block; }
+
+    .dropdown-item {
+      padding: 8px 14px;
+      cursor: pointer;
+      border-bottom: 1px solid #222;
+      transition: background 0.15s;
+    }
+
+    .dropdown-item:last-child { border-bottom: none; }
+    .dropdown-item:hover { background: #2a1010; }
+
+    .dropdown-name {
+      font-size: 0.85rem;
+      color: #ff8888;
+      font-weight: bold;
+    }
+
+    .dropdown-sub {
+      font-size: 0.72rem;
+      color: #777;
+      margin-top: 2px;
+    }
+
+    .dropdown-no-result {
+      padding: 12px 14px;
+      font-size: 0.82rem;
+      color: #666;
+      text-align: center;
+    }
+
+    mark {
+      background: transparent;
+      color: #ff4444;
+      font-weight: bold;
+    }
+
+    /* 年代バー */
+    .decade-bar {
+      background: #0d0d0d;
+      border-bottom: 1px solid #222;
+      padding: 10px 24px 14px;
+      flex-shrink: 0;
+    }
+
+    .decade-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .decade-label {
+      font-size: 0.78rem;
+      color: #888;
+    }
+
+    .decade-current {
+      font-size: 1rem;
+      font-weight: bold;
+      color: #ff6666;
+      letter-spacing: 0.05em;
+    }
+
+    .decade-count {
+      font-size: 0.75rem;
+      color: #666;
+    }
+
+    .timeline-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .decade-btns {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .decade-btn {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      color: #777;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .decade-btn:hover {
+      border-color: #cc3333;
+      color: #ccc;
+    }
+
+    .decade-btn.active {
+      background: #cc3333;
+      border-color: #ff4444;
+      color: #fff;
+      box-shadow: 0 0 8px rgba(204,51,51,0.5);
+    }
+
+    .play-btn {
+      background: #1a1a1a;
+      border: 1px solid #444;
+      color: #ff6666;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+
+    .play-btn:hover { background: #2a1010; border-color: #cc3333; }
+
+    .filter-btn {
+      background: #222;
+      border: 1px solid #444;
+      color: #ccc;
+      padding: 4px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.78rem;
+      transition: all 0.2s;
+    }
+
+    .filter-btn:hover, .filter-btn.active {
+      background: #cc3333;
+      border-color: #cc3333;
+      color: #fff;
+    }
+
+    #map {
+      flex: 1;
+    }
+
+    /* カスタムマーカー */
+    .band-marker {
+      background: #cc3333;
+      border: 2px solid #ff6666;
+      border-radius: 50%;
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(204,51,51,0.8);
+      transition: transform 0.15s;
+    }
+
+    .band-marker:hover { transform: scale(1.4); }
+
+    .band-marker.multiple {
+      background: #ff8800;
+      border-color: #ffaa44;
+      box-shadow: 0 0 8px rgba(255,136,0,0.8);
+    }
+
+    /* ポップアップ */
+    .leaflet-popup-content-wrapper {
+      background: #1a1a1a;
+      border: 1px solid #cc3333;
+      border-radius: 8px;
+      color: #f0f0f0;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+    }
+
+    .leaflet-popup-tip { background: #cc3333; }
+
+    .popup-content { min-width: 220px; }
+
+    .popup-location {
+      font-size: 0.75rem;
+      color: #888;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .band-entry {
+      border-bottom: 1px solid #2a2a2a;
+      padding: 8px 0;
+    }
+
+    .band-entry:last-child { border-bottom: none; }
+
+    .band-name {
+      font-size: 1rem;
+      font-weight: bold;
+      color: #ff6666;
+    }
+
+    .band-meta {
+      font-size: 0.78rem;
+      color: #aaa;
+      margin-top: 3px;
+    }
+
+    .band-genre {
+      display: inline-block;
+      background: #2a1010;
+      border: 1px solid #553333;
+      border-radius: 4px;
+      padding: 1px 7px;
+      font-size: 0.7rem;
+      color: #cc8888;
+      margin-top: 4px;
+    }
+
+    /* 凡例 */
+    .legend {
+      position: absolute;
+      bottom: 30px;
+      right: 10px;
+      z-index: 1000;
+      background: rgba(20,20,20,0.92);
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.75rem;
+      color: #aaa;
+    }
+
+    .legend-title { color: #ff6666; font-weight: bold; margin-bottom: 6px; }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .legend-dot {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+    }
+
+    .dot-single { background: #cc3333; border: 2px solid #ff6666; }
+    .dot-multi  { background: #ff8800; border: 2px solid #ffaa44; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="guitar-icon">🎸</div>
+  <div>
+    <h1>ロックンロールマップ</h1>
+    <div class="subtitle">世界のロックバンド出身地マップ</div>
+  </div>
+</header>
+
+<div class="decade-bar">
+  <div class="decade-header">
+    <div>
+      <span class="decade-label">年代：</span>
+      <span class="decade-current" id="decadeLabel">すべて</span>
+    </div>
+    <div class="decade-count" id="decadeCount"></div>
+  </div>
+  <div class="timeline-wrapper">
+    <button class="play-btn" id="playBtn" title="自動再生">▶</button>
+    <div class="decade-btns" id="decadeBtns"></div>
+  </div>
+</div>
+
+<div class="search-bar">
+  <div class="search-wrapper">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="searchInput" placeholder="バンド名・アーティスト名・都市名で検索..." autocomplete="off" />
+    <button class="search-clear" id="searchClear">✕</button>
+    <div class="search-dropdown" id="searchDropdown"></div>
+  </div>
+  <div class="search-result-count" id="searchResultCount"></div>
+</div>
+
+<div class="filter-bar">
+  <label>ジャンル：</label>
+  <button class="filter-btn active" data-genre="all">すべて</button>
+  <button class="filter-btn" data-genre="Hard Rock">ハードロック</button>
+  <button class="filter-btn" data-genre="Heavy Metal">ヘヴィメタル</button>
+  <button class="filter-btn" data-genre="Classic Rock">クラシックロック</button>
+  <button class="filter-btn" data-genre="Punk Rock">パンクロック</button>
+  <button class="filter-btn" data-genre="Alternative">オルタナティブ</button>
+  <button class="filter-btn" data-genre="Grunge">グランジ</button>
+  <button class="filter-btn" data-genre="Progressive Rock">プログレ</button>
+  <button class="filter-btn" data-genre="J-Rock">J-Rock</button>
+  <button class="filter-btn" data-genre="Solo">ソロ</button>
+</div>
+
+<div id="map"></div>
+
+<div class="legend">
+  <div class="legend-title">🎸 凡例</div>
+  <div class="legend-item"><div class="legend-dot dot-single"></div>1バンド</div>
+  <div class="legend-item"><div class="legend-dot dot-multi"></div>複数バンド</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const bands = [
+  // イギリス
+  { name: "Led Zeppelin",       city: "London",       country: "UK",        lat: 51.505,  lng: -0.09,  genre: "Hard Rock",        formed: 1968, members: "Robert Plant, Jimmy Page, John Paul Jones, John Bonham" },
+  { name: "The Rolling Stones", city: "London",       country: "UK",        lat: 51.510,  lng: -0.07,  genre: "Classic Rock",     formed: 1962, members: "Mick Jagger, Keith Richards, Charlie Watts..." },
+  { name: "The Beatles",        city: "Liverpool",    country: "UK",        lat: 53.408,  lng: -2.991, genre: "Classic Rock",     formed: 1960, members: "John Lennon, Paul McCartney, George Harrison, Ringo Starr" },
+  { name: "Black Sabbath",      city: "Birmingham",   country: "UK",        lat: 52.480,  lng: -1.902, genre: "Heavy Metal",      formed: 1968, members: "Ozzy Osbourne, Tony Iommi, Geezer Butler, Bill Ward" },
+  { name: "The Who",            city: "London",       country: "UK",        lat: 51.515,  lng: -0.13,  genre: "Classic Rock",     formed: 1964, members: "Roger Daltrey, Pete Townshend, John Entwistle, Keith Moon" },
+  { name: "Deep Purple",        city: "Hertford",     country: "UK",        lat: 51.796,  lng: -0.078, genre: "Hard Rock",        formed: 1968, members: "Ian Gillan, Ritchie Blackmore, Roger Glover..." },
+  { name: "Iron Maiden",        city: "London",       country: "UK",        lat: 51.488,  lng: 0.005,  genre: "Heavy Metal",      formed: 1975, members: "Bruce Dickinson, Steve Harris, Dave Murray..." },
+  { name: "The Clash",          city: "London",       country: "UK",        lat: 51.522,  lng: -0.088, genre: "Punk Rock",        formed: 1976, members: "Joe Strummer, Mick Jones, Paul Simonon, Topper Headon" },
+  { name: "Sex Pistols",        city: "London",       country: "UK",        lat: 51.501,  lng: -0.141, genre: "Punk Rock",        formed: 1975, members: "Johnny Rotten, Sid Vicious, Steve Jones, Paul Cook" },
+  { name: "Pink Floyd",         city: "London",       country: "UK",        lat: 51.530,  lng: -0.100, genre: "Progressive Rock", formed: 1965, members: "Syd Barrett, Roger Waters, David Gilmour, Nick Mason" },
+  { name: "Queen",              city: "London",       country: "UK",        lat: 51.495,  lng: -0.175, genre: "Hard Rock",        formed: 1970, members: "Freddie Mercury, Brian May, Roger Taylor, John Deacon" },
+  { name: "Radiohead",          city: "Oxford",       country: "UK",        lat: 51.752,  lng: -1.258, genre: "Alternative",      formed: 1985, members: "Thom Yorke, Jonny Greenwood, Ed O'Brien..." },
+  { name: "Oasis",              city: "Manchester",   country: "UK",        lat: 53.483,  lng: -2.244, genre: "Alternative",      formed: 1991, members: "Liam Gallagher, Noel Gallagher, Paul Arthurs..." },
+  { name: "The Cure",           city: "Crawley",      country: "UK",        lat: 51.110,  lng: -0.186, genre: "Alternative",      formed: 1976, members: "Robert Smith, Simon Gallup, Jason Cooper..." },
+
+  // アメリカ
+  { name: "Nirvana",            city: "Aberdeen, WA", country: "USA",       lat: 46.975,  lng: -123.815, genre: "Grunge",         formed: 1987, members: "Kurt Cobain, Krist Novoselic, Dave Grohl" },
+  { name: "Pearl Jam",          city: "Seattle, WA",  country: "USA",       lat: 47.606,  lng: -122.332, genre: "Grunge",         formed: 1990, members: "Eddie Vedder, Mike McCready, Stone Gossard..." },
+  { name: "Soundgarden",        city: "Seattle, WA",  country: "USA",       lat: 47.620,  lng: -122.350, genre: "Grunge",         formed: 1984, members: "Chris Cornell, Kim Thayil, Ben Shepherd, Matt Cameron" },
+  { name: "Alice in Chains",    city: "Seattle, WA",  country: "USA",       lat: 47.590,  lng: -122.310, genre: "Grunge",         formed: 1987, members: "Layne Staley, Jerry Cantrell, Sean Kinney, Mike Inez" },
+  { name: "Guns N' Roses",      city: "Los Angeles",  country: "USA",       lat: 34.052,  lng: -118.244, genre: "Hard Rock",      formed: 1985, members: "Axl Rose, Slash, Duff McKagan, Izzy Stradlin..." },
+  { name: "The Doors",          city: "Los Angeles",  country: "USA",       lat: 34.040,  lng: -118.260, genre: "Classic Rock",   formed: 1965, members: "Jim Morrison, Ray Manzarek, Robby Krieger, John Densmore" },
+  { name: "Red Hot Chili Peppers", city: "Los Angeles", country: "USA",     lat: 34.070,  lng: -118.300, genre: "Alternative",   formed: 1983, members: "Anthony Kiedis, Flea, Chad Smith, John Frusciante" },
+  { name: "Metallica",          city: "San Francisco", country: "USA",      lat: 37.775,  lng: -122.419, genre: "Heavy Metal",   formed: 1981, members: "James Hetfield, Lars Ulrich, Kirk Hammett, Robert Trujillo" },
+  { name: "Grateful Dead",      city: "San Francisco", country: "USA",      lat: 37.760,  lng: -122.440, genre: "Classic Rock",  formed: 1965, members: "Jerry Garcia, Bob Weir, Phil Lesh..." },
+  { name: "Aerosmith",          city: "Boston, MA",   country: "USA",       lat: 42.360,  lng: -71.057, genre: "Hard Rock",      formed: 1970, members: "Steven Tyler, Joe Perry, Tom Hamilton..." },
+  { name: "The Ramones",        city: "New York",     country: "USA",       lat: 40.714,  lng: -74.006, genre: "Punk Rock",      formed: 1974, members: "Joey Ramone, Johnny Ramone, Dee Dee Ramone, Tommy Ramone" },
+  { name: "Talking Heads",      city: "New York",     country: "USA",       lat: 40.730,  lng: -73.990, genre: "Alternative",    formed: 1975, members: "David Byrne, Tina Weymouth, Chris Frantz, Jerry Harrison" },
+  { name: "Velvet Underground", city: "New York",     country: "USA",       lat: 40.720,  lng: -74.010, genre: "Classic Rock",   formed: 1964, members: "Lou Reed, John Cale, Sterling Morrison, Moe Tucker" },
+  { name: "KISS",               city: "New York",     country: "USA",       lat: 40.750,  lng: -73.980, genre: "Hard Rock",      formed: 1973, members: "Paul Stanley, Gene Simmons, Ace Frehley, Peter Criss" },
+  { name: "Blondie",            city: "New York",     country: "USA",       lat: 40.700,  lng: -73.950, genre: "Punk Rock",      formed: 1974, members: "Debbie Harry, Chris Stein, Clem Burke..." },
+  { name: "Foo Fighters",       city: "Seattle, WA",  country: "USA",       lat: 47.605,  lng: -122.325, genre: "Alternative",  formed: 1994, members: "Dave Grohl, Taylor Hawkins, Nate Mendel..." },
+
+  // カナダ
+  { name: "Rush",               city: "Toronto",      country: "Canada",    lat: 43.651,  lng: -79.347, genre: "Progressive Rock", formed: 1968, members: "Geddy Lee, Alex Lifeson, Neil Peart" },
+  { name: "The Tragically Hip", city: "Kingston, ON", country: "Canada",    lat: 44.231,  lng: -76.486, genre: "Alternative",    formed: 1983, members: "Gord Downie, Rob Baker, Paul Langlois..." },
+  { name: "Nickelback",         city: "Hanna, AB",    country: "Canada",    lat: 51.638,  lng: -111.908, genre: "Hard Rock",     formed: 1995, members: "Chad Kroeger, Ryan Peake, Mike Kroeger, Daniel Adair" },
+
+  // オーストラリア
+  { name: "AC/DC",              city: "Sydney",       country: "Australia", lat: -33.869, lng: 151.209, genre: "Hard Rock",      formed: 1973, members: "Angus Young, Malcolm Young, Bon Scott / Brian Johnson..." },
+  { name: "INXS",               city: "Sydney",       country: "Australia", lat: -33.890, lng: 151.230, genre: "Alternative",    formed: 1977, members: "Michael Hutchence, Andrew Farriss, Tim Farriss..." },
+  { name: "Midnight Oil",       city: "Sydney",       country: "Australia", lat: -33.850, lng: 151.190, genre: "Alternative",    formed: 1972, members: "Peter Garrett, Jim Moginie, Martin Rotsey..." },
+
+  // ドイツ
+  { name: "Scorpions",          city: "Hannover",     country: "Germany",   lat: 52.375,  lng: 9.732,  genre: "Hard Rock",      formed: 1965, members: "Klaus Meine, Rudolf Schenker, Matthias Jabs..." },
+  { name: "Rammstein",          city: "Berlin",       country: "Germany",   lat: 52.520,  lng: 13.405, genre: "Heavy Metal",    formed: 1994, members: "Till Lindemann, Richard Kruspe, Paul Landers..." },
+  { name: "Kraftwerk",          city: "Düsseldorf",   country: "Germany",   lat: 51.225,  lng: 6.782,  genre: "Progressive Rock", formed: 1970, members: "Ralf Hütter, Florian Schneider..." },
+
+  // スウェーデン
+  { name: "ABBA",               city: "Stockholm",    country: "Sweden",    lat: 59.329,  lng: 18.068, genre: "Classic Rock",   formed: 1972, members: "Agnetha Fältskog, Björn Ulvaeus, Benny Andersson, Anni-Frid Lyngstad" },
+  { name: "Europe",             city: "Stockholm",    country: "Sweden",    lat: 59.339,  lng: 18.088, genre: "Hard Rock",      formed: 1979, members: "Joey Tempest, John Norum, John Leven..." },
+  { name: "Ghost",              city: "Linköping",    country: "Sweden",    lat: 58.411,  lng: 15.621, genre: "Heavy Metal",    formed: 2006, members: "Tobias Forge (Papa Emeritus)" },
+
+  // フィンランド
+  { name: "Nightwish",          city: "Kitee",        country: "Finland",   lat: 62.098,  lng: 30.072, genre: "Heavy Metal",    formed: 1996, members: "Floor Jansen, Marco Hietala, Emppu Vuorinen, Tuomas Holopainen" },
+  { name: "HIM",                city: "Helsinki",     country: "Finland",   lat: 60.169,  lng: 24.935, genre: "Alternative",    formed: 1991, members: "Ville Valo, Linde, Mige, Gas Lipstick, Burton" },
+
+  // アイルランド
+  { name: "U2",                 city: "Dublin",       country: "Ireland",   lat: 53.349,  lng: -6.260, genre: "Alternative",    formed: 1976, members: "Bono, The Edge, Adam Clayton, Larry Mullen Jr." },
+  { name: "The Cranberries",    city: "Limerick",     country: "Ireland",   lat: 52.668,  lng: -8.630, genre: "Alternative",    formed: 1989, members: "Dolores O'Riordan, Noel Hogan, Mike Hogan, Fergal Lawler" },
+
+  // スペイン
+  { name: "Ska-P",              city: "Madrid",       country: "Spain",     lat: 40.416,  lng: -3.703, genre: "Punk Rock",      formed: 1994, members: "Pulpul, Pipi, Ferrán, Jhelisa, Txus, Panko" },
+
+  // イタリア
+  { name: "Maneskin",           city: "Rome",         country: "Italy",     lat: 41.902,  lng: 12.496, genre: "Hard Rock",      formed: 2016, members: "Damiano David, Victoria De Angelis, Thomas Raggi, Ethan Torchio" },
+
+  // ノルウェー
+  { name: "A-ha",               city: "Oslo",         country: "Norway",    lat: 59.913,  lng: 10.752, genre: "Alternative",    formed: 1982, members: "Morten Harket, Pål Gamst Waaktaar, Magne Furuholmen" },
+  { name: "Dimmu Borgir",       city: "Oslo",         country: "Norway",    lat: 59.920,  lng: 10.770, genre: "Heavy Metal",    formed: 1993, members: "Shagrath, Silenoz, Galder, Daray, Gerlioz, Vortex" },
+
+  // ブラジル
+  { name: "Sepultura",          city: "Belo Horizonte", country: "Brazil",  lat: -19.917, lng: -43.934, genre: "Heavy Metal",  formed: 1984, members: "Max Cavalera, Igor Cavalera, Andreas Kisser, Paulo Jr." },
+
+  // 日本
+  { name: "X JAPAN",            city: "千葉",          country: "Japan",    lat: 35.606,  lng: 140.121, genre: "Heavy Metal",  formed: 1982, members: "Toshi, Yoshiki, hide, Pata, Heath" },
+  { name: "BUCK-TICK",          city: "群馬",          country: "Japan",    lat: 36.391,  lng: 139.060, genre: "Alternative",  formed: 1983, members: "Atsushi Sakurai, Hisashi Imai, Yutaka Higuchi, Yuuta Higuchi, Toll Yagami" },
+  { name: "LUNA SEA",           city: "東京",          country: "Japan",    lat: 35.689,  lng: 139.691, genre: "J-Rock",       formed: 1989, members: "RYUICHI, SUGIZO, INORAN, J, SHINYA" },
+  { name: "THE YELLOW MONKEY",  city: "東京",          country: "Japan",    lat: 35.700,  lng: 139.710, genre: "J-Rock",       formed: 1988, members: "吉井和哉, 菊地英昭, 廣瀬洋一, 菊地英二" },
+  { name: "B'z",                city: "東京",          country: "Japan",    lat: 35.675,  lng: 139.700, genre: "Hard Rock",    formed: 1988, members: "稲葉浩志, 松本孝弘" },
+  { name: "Dir en grey",        city: "大阪",          country: "Japan",    lat: 34.693,  lng: 135.502, genre: "Heavy Metal",  formed: 1997, members: "Kyo, Kaoru, Die, Toshiya, Shinya" },
+  { name: "THE BLUE HEARTS",    city: "東京",          country: "Japan",    lat: 35.680,  lng: 139.680, genre: "Punk Rock",    formed: 1985, members: "甲本ヒロト, 真島昌利, 河ちゃん, 梶くん" },
+  { name: "横浜銀蝿",           city: "横浜",          country: "Japan",    lat: 35.444,  lng: 139.638, genre: "Classic Rock",  formed: 1979, members: "翔, JOHNNY, TAKU, REBEL" },
+
+  // ========== 追加バンド (1990s–2010s) ==========
+
+  // --- USA: Nu-Metal / Alternative Metal ---
+  { name: "Korn",                  city: "Bakersfield, CA", country: "USA", lat: 35.373, lng: -119.019, genre: "Nu-Metal",        formed: 1993, members: "Jonathan Davis, James Shaffer, Brian Welch, Reginald Arvizu, Ray Luzier" },
+  { name: "Linkin Park",           city: "Los Angeles",     country: "USA", lat: 34.055, lng: -118.255, genre: "Nu-Metal",        formed: 1996, members: "Chester Bennington, Mike Shinoda, Brad Delson, Rob Bourdon, Dave Farrell, Joe Hahn" },
+  { name: "Limp Bizkit",           city: "Jacksonville, FL",country: "USA", lat: 30.332, lng: -81.656,  genre: "Nu-Metal",        formed: 1994, members: "Fred Durst, Wes Borland, Sam Rivers, John Otto, DJ Lethal" },
+  { name: "Slipknot",              city: "Des Moines, IA",  country: "USA", lat: 41.600, lng: -93.609,  genre: "Nu-Metal",        formed: 1995, members: "Corey Taylor, Shawn Crahan, Mick Thomson, Joey Jordison..." },
+  { name: "System of a Down",      city: "Los Angeles",     country: "USA", lat: 34.045, lng: -118.240, genre: "Nu-Metal",        formed: 1994, members: "Serj Tankian, Daron Malakian, Shavo Odadjian, John Dolmayan" },
+  { name: "Disturbed",             city: "Chicago, IL",     country: "USA", lat: 41.878, lng: -87.630,  genre: "Nu-Metal",        formed: 1994, members: "David Draiman, Dan Donegan, Mike Wengren, John Moyer" },
+  { name: "Drowning Pool",         city: "Dallas, TX",      country: "USA", lat: 32.776, lng: -96.797,  genre: "Nu-Metal",        formed: 1996, members: "Jason Jones, C.J. Pierce, Stevie Benton, Mike Luce" },
+  { name: "Staind",                city: "Holyoke, MA",     country: "USA", lat: 42.203, lng: -72.616,  genre: "Nu-Metal",        formed: 1995, members: "Aaron Lewis, Mike Mushok, Johnny April, Jon Wysocki" },
+  { name: "Mudvayne",              city: "Peoria, IL",      country: "USA", lat: 40.693, lng: -89.589,  genre: "Nu-Metal",        formed: 1996, members: "Chad Gray, Greg Tribbett, Ryan Martinie, Matthew McDonough" },
+  { name: "Papa Roach",            city: "Vacaville, CA",   country: "USA", lat: 38.357, lng: -121.988, genre: "Nu-Metal",        formed: 1993, members: "Jacoby Shaddix, Jerry Horton, Tobin Esperance, Tony Palermo" },
+  { name: "P.O.D.",                city: "San Diego, CA",   country: "USA", lat: 32.715, lng: -117.157, genre: "Nu-Metal",        formed: 1992, members: "Sonny Sandoval, Marcos Curiel, Traa Daniels, Wuv Bernardo" },
+  { name: "Deftones",              city: "Sacramento, CA",  country: "USA", lat: 38.582, lng: -121.494, genre: "Nu-Metal",        formed: 1988, members: "Chino Moreno, Stephen Carpenter, Chi Cheng, Abe Cunningham, Frank Delgado" },
+  { name: "Static-X",             city: "Los Angeles",      country: "USA", lat: 34.035, lng: -118.260, genre: "Nu-Metal",        formed: 1994, members: "Wayne Static, Koichi Fukuda, Tony Campos, Ken Jay" },
+  { name: "Taproot",               city: "Ann Arbor, MI",   country: "USA", lat: 42.280, lng: -83.743,  genre: "Nu-Metal",        formed: 1997, members: "Stephen Richards, Mike DeWolf, Phil Lipscomb, Jarrod Montague" },
+  { name: "Sevendust",             city: "Atlanta, GA",     country: "USA", lat: 33.749, lng: -84.388,  genre: "Nu-Metal",        formed: 1994, members: "Lajon Witherspoon, Clint Lowery, John Connolly, Vince Hornsby, Morgan Rose" },
+
+  // --- USA: Pop Punk ---
+  { name: "Green Day",             city: "Oakland, CA",     country: "USA", lat: 37.804, lng: -122.271, genre: "Punk Rock",       formed: 1987, members: "Billie Joe Armstrong, Mike Dirnt, Tré Cool" },
+  { name: "Blink-182",             city: "San Diego, CA",   country: "USA", lat: 32.720, lng: -117.170, genre: "Punk Rock",       formed: 1992, members: "Tom DeLonge, Mark Hoppus, Travis Barker" },
+  { name: "Sum 41",                city: "Ajax, ON",        country: "Canada", lat: 43.850, lng: -79.023, genre: "Punk Rock",    formed: 1996, members: "Deryck Whibley, Jason McCaslin, Dave Baksh, Tom Thacker, Tom Hannigan" },
+  { name: "Good Charlotte",        city: "Waldorf, MD",     country: "USA", lat: 38.624, lng: -76.917,  genre: "Punk Rock",       formed: 1996, members: "Joel Madden, Benji Madden, Paul Thomas, Billy Martin, Dean Butterworth" },
+  { name: "Simple Plan",           city: "Montreal",        country: "Canada", lat: 45.501, lng: -73.567, genre: "Punk Rock",    formed: 1999, members: "Pierre Bouvier, Chuck Comeau, Jeff Stinco, Sébastien Lefebvre, David Desrosiers" },
+  { name: "New Found Glory",       city: "Coral Springs, FL",country: "USA", lat: 26.271, lng: -80.270, genre: "Punk Rock",       formed: 1997, members: "Jordan Pundik, Chad Gilbert, Steve Klein, Ian Grushka, Cyrus Bolooki" },
+  { name: "The Offspring",         city: "Garden Grove, CA",country: "USA", lat: 33.774, lng: -117.941, genre: "Punk Rock",       formed: 1984, members: "Dexter Holland, Noodles, Todd Morse, Pete Parada" },
+  { name: "MxPx",                  city: "Bremerton, WA",   country: "USA", lat: 47.567, lng: -122.632, genre: "Punk Rock",       formed: 1992, members: "Mike Herrera, Tom Wisniewski, Yuri Ruley" },
+  { name: "Yellowcard",            city: "Jacksonville, FL",country: "USA", lat: 30.340, lng: -81.660,  genre: "Punk Rock",       formed: 1997, members: "Ryan Key, Sean Mackin, William Ryan Key, Longineu Parsons, Josh Portman" },
+  { name: "Sugarcult",             city: "Santa Barbara, CA",country: "USA", lat: 34.420, lng: -119.699, genre: "Punk Rock",      formed: 1999, members: "Tim Pagnotta, Airin Older, Ben Davis, Kenny Livingston" },
+  { name: "Relient K",             city: "Canton, OH",      country: "USA", lat: 40.799, lng: -81.378,  genre: "Punk Rock",       formed: 1998, members: "Matt Thiessen, Matt Hoopes, Ethan Luck, Dave Douglas" },
+  { name: "Paramore",              city: "Franklin, TN",    country: "USA", lat: 35.925, lng: -86.869,  genre: "Punk Rock",       formed: 2004, members: "Hayley Williams, Taylor York, Zac Farro" },
+  { name: "Fall Out Boy",          city: "Wilmette, IL",    country: "USA", lat: 42.072, lng: -87.728,  genre: "Punk Rock",       formed: 2001, members: "Patrick Stump, Pete Wentz, Joe Trohman, Andy Hurley" },
+  { name: "Panic! at the Disco",   city: "Las Vegas, NV",   country: "USA", lat: 36.175, lng: -115.137, genre: "Alternative",     formed: 2004, members: "Brendon Urie, Ryan Ross, Spencer Smith, Brent Wilson" },
+  { name: "My Chemical Romance",   city: "Newark, NJ",      country: "USA", lat: 40.735, lng: -74.172,  genre: "Alternative",     formed: 2001, members: "Gerard Way, Frank Iero, Ray Toro, Mikey Way" },
+  { name: "Dashboard Confessional",city: "Boca Raton, FL",  country: "USA", lat: 26.368, lng: -80.128,  genre: "Alternative",     formed: 1999, members: "Chris Carrabba" },
+  { name: "Jimmy Eat World",       city: "Mesa, AZ",        country: "USA", lat: 33.415, lng: -111.832, genre: "Alternative",     formed: 1993, members: "Jim Adkins, Tom Linton, Rick Burch, Zach Lind" },
+  { name: "Saves the Day",         city: "Princeton, NJ",   country: "USA", lat: 40.358, lng: -74.659,  genre: "Alternative",     formed: 1995, members: "Chris Conley, Arun Bali, David Soloway, Rodrigo Palma" },
+  { name: "Brand New",             city: "Long Island, NY", country: "USA", lat: 40.789, lng: -73.135,  genre: "Alternative",     formed: 2000, members: "Jesse Lacey, Vincent Accardi, Garrett Tierney, Brian Lane" },
+  { name: "Taking Back Sunday",    city: "Long Island, NY", country: "USA", lat: 40.795, lng: -73.140,  genre: "Alternative",     formed: 1999, members: "Adam Lazzara, John Nolan, Shaun Cooper, Mark O'Connell" },
+
+  // --- USA: Indie / Alternative ---
+  { name: "The White Stripes",     city: "Detroit, MI",     country: "USA", lat: 42.331, lng: -83.046,  genre: "Alternative",     formed: 1997, members: "Jack White, Meg White" },
+  { name: "The Strokes",           city: "New York",        country: "USA", lat: 40.728, lng: -74.002,  genre: "Alternative",     formed: 1998, members: "Julian Casablancas, Nick Valensi, Albert Hammond Jr., Nikolai Fraiture, Fabrizio Moretti" },
+  { name: "The Black Keys",        city: "Akron, OH",       country: "USA", lat: 41.081, lng: -81.519,  genre: "Alternative",     formed: 2001, members: "Dan Auerbach, Patrick Carney" },
+  { name: "Interpol",              city: "New York",        country: "USA", lat: 40.722, lng: -73.998,  genre: "Alternative",     formed: 1997, members: "Paul Banks, Daniel Kessler, Carlos Dengler, Sam Fogarino" },
+  { name: "Modest Mouse",          city: "Issaquah, WA",    country: "USA", lat: 47.530, lng: -122.033, genre: "Alternative",     formed: 1992, members: "Isaac Brock, Jeremiah Green, Eric Judy" },
+  { name: "Bright Eyes",           city: "Omaha, NE",       country: "USA", lat: 41.257, lng: -95.995,  genre: "Alternative",     formed: 1995, members: "Conor Oberst, Mike Mogis, Nate Walcott" },
+  { name: "Death Cab for Cutie",   city: "Bellingham, WA",  country: "USA", lat: 48.749, lng: -122.480, genre: "Alternative",     formed: 1997, members: "Ben Gibbard, Chris Walla, Nick Harmer, Jason McGerr" },
+  { name: "Jack Johnson",          city: "Oahu, HI",        country: "USA", lat: 21.387, lng: -157.976, genre: "Alternative",     formed: 1999, members: "Jack Johnson" },
+  { name: "Weezer",                city: "Los Angeles",     country: "USA", lat: 34.058, lng: -118.278, genre: "Alternative",     formed: 1992, members: "Rivers Cuomo, Patrick Wilson, Brian Bell, Scott Shriner" },
+  { name: "The Killers",           city: "Las Vegas, NV",   country: "USA", lat: 36.180, lng: -115.143, genre: "Alternative",     formed: 2001, members: "Brandon Flowers, Dave Keuning, Mark Stoermer, Ronnie Vannucci Jr." },
+  { name: "Kings of Leon",         city: "Nashville, TN",   country: "USA", lat: 36.162, lng: -86.782,  genre: "Alternative",     formed: 1999, members: "Caleb Followill, Nathan Followill, Jared Followill, Matthew Followill" },
+  { name: "The National",          city: "Cincinnati, OH",  country: "USA", lat: 39.103, lng: -84.512,  genre: "Alternative",     formed: 1999, members: "Matt Berninger, Aaron Dessner, Bryce Dessner, Scott Devendorf, Bryan Devendorf" },
+  { name: "Arcade Fire",           city: "Montreal",        country: "Canada", lat: 45.508, lng: -73.555, genre: "Alternative",   formed: 2001, members: "Win Butler, Régine Chassagne, Richard Reed Parry, Tim Kingsbury..." },
+  { name: "Wolf Parade",           city: "Montreal",        country: "Canada", lat: 45.515, lng: -73.570, genre: "Alternative",   formed: 2003, members: "Spencer Krug, Dan Boeckner, Arlen Thompson, Hadji Bakara" },
+  { name: "Broken Social Scene",   city: "Toronto",         country: "Canada", lat: 43.655, lng: -79.360, genre: "Alternative",   formed: 1999, members: "Kevin Drew, Brendan Canning..." },
+  { name: "Stars",                 city: "Montreal",        country: "Canada", lat: 45.512, lng: -73.560, genre: "Alternative",   formed: 2000, members: "Torquil Campbell, Amy Millan, Chris Seligman, Evan Cranley, Patrick McGee" },
+  { name: "The New Pornographers", city: "Vancouver",       country: "Canada", lat: 49.283, lng: -123.121, genre: "Alternative",  formed: 1997, members: "A.C. Newman, Neko Case, Dan Bejar, Kathryn Calder..." },
+  { name: "Phoenix",               city: "Versailles",      country: "France", lat: 48.804, lng: 2.130,  genre: "Alternative",    formed: 1995, members: "Thomas Mars, Deck d'Arcy, Christian Mazzalai, Laurent Brancowitz" },
+  { name: "Daft Punk",             city: "Paris",           country: "France", lat: 48.853, lng: 2.350,  genre: "Alternative",    formed: 1993, members: "Thomas Bangalter, Guy-Manuel de Homem-Christo" },
+  { name: "Air",                   city: "Versailles",      country: "France", lat: 48.800, lng: 2.125,  genre: "Alternative",    formed: 1995, members: "Nicolas Godin, Jean-Benoît Dunckel" },
+
+  // --- USA: Hard Rock / Metal ---
+  { name: "Tool",                  city: "Los Angeles",     country: "USA", lat: 34.062, lng: -118.285, genre: "Heavy Metal",     formed: 1990, members: "Maynard James Keenan, Adam Jones, Danny Carey, Justin Chancellor" },
+  { name: "A Perfect Circle",      city: "Los Angeles",     country: "USA", lat: 34.048, lng: -118.270, genre: "Heavy Metal",     formed: 1999, members: "Maynard James Keenan, Billy Howerdel, Troy Van Leeuwen..." },
+  { name: "Rage Against the Machine",city:"Los Angeles",    country: "USA", lat: 34.040, lng: -118.250, genre: "Heavy Metal",     formed: 1991, members: "Zack de la Rocha, Tom Morello, Tim Commerford, Brad Wilk" },
+  { name: "Audioslave",            city: "Los Angeles",     country: "USA", lat: 34.050, lng: -118.258, genre: "Hard Rock",       formed: 2001, members: "Chris Cornell, Tom Morello, Tim Commerford, Brad Wilk" },
+  { name: "Stone Temple Pilots",   city: "San Diego, CA",   country: "USA", lat: 32.718, lng: -117.162, genre: "Grunge",          formed: 1989, members: "Scott Weiland, Dean DeLeo, Robert DeLeo, Eric Kretz" },
+  { name: "Bush",                  city: "London",          country: "UK",  lat: 51.492, lng: -0.190,   genre: "Alternative",     formed: 1992, members: "Gavin Rossdale, Nigel Pulsford, Dave Parsons, Robin Goodridge" },
+  { name: "Live",                  city: "York, PA",        country: "USA", lat: 39.963, lng: -76.728,  genre: "Alternative",     formed: 1984, members: "Ed Kowalczyk, Chad Taylor, Patrick Dahlheimer, Chad Gracey" },
+  { name: "Matchbox Twenty",       city: "Orlando, FL",     country: "USA", lat: 28.539, lng: -81.379,  genre: "Alternative",     formed: 1995, members: "Rob Thomas, Kyle Cook, Paul Doucette, Brian Yale" },
+  { name: "Creed",                 city: "Tallahassee, FL", country: "USA", lat: 30.438, lng: -84.281,  genre: "Hard Rock",       formed: 1993, members: "Scott Stapp, Mark Tremonti, Scott Phillips, Brian Marshall" },
+  { name: "Nickelback",            city: "Hanna, AB",       country: "Canada", lat: 51.638, lng: -111.908, genre: "Hard Rock",    formed: 1995, members: "Chad Kroeger, Ryan Peake, Mike Kroeger, Daniel Adair" },
+  { name: "Hinder",                city: "Oklahoma City, OK",country:"USA", lat: 35.467, lng: -97.517,  genre: "Hard Rock",       formed: 2001, members: "Austin Winkler, Mark King, Joe Garvey, Mike Rodden, Cody Hanson" },
+  { name: "Puddle of Mudd",        city: "Kansas City, MO", country: "USA", lat: 39.099, lng: -94.578,  genre: "Hard Rock",       formed: 1991, members: "Wes Scantlin, Paul Phillips, Doug Ardito, Greg Upchurch" },
+  { name: "Nickelback",            city: "Vancouver",       country: "Canada", lat: 49.290, lng: -123.130, genre: "Hard Rock",    formed: 1995, members: "Chad Kroeger, Ryan Peake, Mike Kroeger, Daniel Adair" },
+  { name: "Three Days Grace",      city: "Norwood, ON",     country: "Canada", lat: 44.383, lng: -78.000, genre: "Hard Rock",     formed: 1992, members: "Adam Gontier, Brad Walst, Neil Sanderson, Barry Stock" },
+  { name: "Finger Eleven",         city: "Burlington, ON",  country: "Canada", lat: 43.325, lng: -79.800, genre: "Hard Rock",     formed: 1990, members: "Scott Anderson, James Black, Rick Jackett, Sean Anderson, Steve Molella" },
+  { name: "Theory of a Deadman",   city: "Delta, BC",       country: "Canada", lat: 49.087, lng: -123.058, genre: "Hard Rock",    formed: 2001, members: "Tyler Connolly, Dave Brenner, Dean Back, Joey Dandeneau" },
+  { name: "Default",               city: "Vancouver",       country: "Canada", lat: 49.285, lng: -123.115, genre: "Hard Rock",    formed: 1999, members: "Dallas Smith, Dave Benedict, Jeremy Hora, Bryan Small" },
+  { name: "3 Doors Down",          city: "Escatawpa, MS",   country: "USA", lat: 30.430, lng: -88.520,  genre: "Hard Rock",       formed: 1996, members: "Brad Arnold, Matt Roberts, Todd Harrell, Greg Upchurch" },
+  { name: "Shinedown",             city: "Jacksonville, FL",country: "USA", lat: 30.332, lng: -81.650,  genre: "Hard Rock",       formed: 2001, members: "Brent Smith, Zach Myers, Eric Bass, Barry Kerch" },
+  { name: "Breaking Benjamin",     city: "Wilkes-Barre, PA",country: "USA", lat: 41.246, lng: -75.882,  genre: "Hard Rock",       formed: 1999, members: "Benjamin Burnley, Aaron Fink, Mark James Klepaski, Jeremy Hummel" },
+  { name: "Trapt",                 city: "Los Gatos, CA",   country: "USA", lat: 37.226, lng: -121.982, genre: "Hard Rock",       formed: 1995, members: "Chris Taylor Brown, Simon Ormandy, Pete Charell, Aaron Montgomery" },
+  { name: "Chevelle",              city: "Chicago, IL",     country: "USA", lat: 41.882, lng: -87.640,  genre: "Hard Rock",       formed: 1995, members: "Pete Loeffler, Sam Loeffler, Dean Bernardini" },
+
+  // --- USA: Metalcore / Post-Hardcore ---
+  { name: "Killswitch Engage",     city: "Westfield, MA",   country: "USA", lat: 42.125, lng: -72.749,  genre: "Heavy Metal",     formed: 1999, members: "Jesse Leach, Adam Dutkiewicz, Joel Stroetzel, Mike D'Antonio, Justin Foley" },
+  { name: "Atreyu",                city: "Orange County, CA",country:"USA", lat: 33.787, lng: -117.853, genre: "Heavy Metal",     formed: 1998, members: "Alex Varkatzas, Dan Jacobs, Travis Miguel, Marc McKnight, Brandon Saller" },
+  { name: "As I Lay Dying",        city: "San Diego, CA",   country: "USA", lat: 32.712, lng: -117.156, genre: "Heavy Metal",     formed: 2000, members: "Tim Lambesis, Jordan Mancino, Phil Sgrosso, Nick Hipa, Josh Gilbert" },
+  { name: "Bullet for My Valentine",city:"Bridgend",        country: "UK",  lat: 51.504, lng: -3.578,   genre: "Heavy Metal",     formed: 1998, members: "Matt Tuck, Michael Paget, Jason James, Michael Thomas" },
+  { name: "Trivium",               city: "Orlando, FL",     country: "USA", lat: 28.545, lng: -81.370,  genre: "Heavy Metal",     formed: 1999, members: "Matt Heafy, Corey Beaulieu, Paolo Gregoletto, Alex Bent" },
+  { name: "Avenged Sevenfold",     city: "Huntington Beach, CA",country:"USA",lat:33.660,lng:-117.999,  genre: "Heavy Metal",     formed: 1999, members: "M. Shadows, Zacky Vengeance, Synyster Gates, Johnny Christ, Brooks Wackerman" },
+  { name: "Shadows Fall",          city: "Springfield, MA", country: "USA", lat: 42.100, lng: -72.590,  genre: "Heavy Metal",     formed: 1995, members: "Brian Fair, Jon Donais, Matt Bachand, Paul Romanko, Jason Bittner" },
+  { name: "Lamb of God",           city: "Richmond, VA",    country: "USA", lat: 37.541, lng: -77.434,  genre: "Heavy Metal",     formed: 1994, members: "Randy Blythe, Mark Morton, Willie Adler, John Campbell, Chris Adler" },
+  { name: "Mastodon",              city: "Atlanta, GA",     country: "USA", lat: 33.755, lng: -84.392,  genre: "Heavy Metal",     formed: 2000, members: "Brann Dailor, Bill Kelliher, Brent Hinds, Troy Sanders" },
+  { name: "Between the Buried and Me",city:"Raleigh, NC",   country: "USA", lat: 35.779, lng: -78.638,  genre: "Heavy Metal",     formed: 2000, members: "Tommy Giles Rogers Jr., Paul Waggoner, Dustie Waring, Blake Richardson, Dan Briggs" },
+  { name: "Norma Jean",            city: "Douglasville, GA",country: "USA", lat: 33.750, lng: -84.742,  genre: "Heavy Metal",     formed: 1997, members: "Cory Brandan, Scottie Henry, Cory Chanlee, Jeff Hinton, Chris Day" },
+  { name: "Underoath",             city: "Tampa, FL",       country: "USA", lat: 27.948, lng: -82.458,  genre: "Heavy Metal",     formed: 1997, members: "Spencer Chamberlain, Tim McTague, James Smith, Chris Dudley, Grant Brandell, Aaron Gillespie" },
+  { name: "Bring Me the Horizon",  city: "Sheffield",       country: "UK",  lat: 53.381, lng: -1.470,   genre: "Heavy Metal",     formed: 2004, members: "Oliver Sykes, Lee Malia, Matt Kean, Matt Nicholls, Jordan Fish" },
+  { name: "While She Sleeps",      city: "Sheffield",       country: "UK",  lat: 53.388, lng: -1.478,   genre: "Heavy Metal",     formed: 2006, members: "Lawrence Taylor, Sean Long, Mat Welsh, Aaran McKenzie, Adam Savage" },
+  { name: "Asking Alexandria",     city: "Dubai",           country: "UAE", lat: 25.204, lng: 55.270,   genre: "Heavy Metal",     formed: 2008, members: "Danny Worsnop, Ben Bruce, Cameron Liddell, James Cassells, Sam Bettley" },
+  { name: "Of Mice & Men",         city: "Long Beach, CA",  country: "USA", lat: 33.770, lng: -118.193, genre: "Heavy Metal",     formed: 2009, members: "Aaron Pauley, Phil Manansala, Alan Ashby, Valentino Arteaga" },
+  { name: "Memphis May Fire",       city: "Dallas, TX",     country: "USA", lat: 32.783, lng: -96.804,  genre: "Heavy Metal",     formed: 2006, members: "Matty Mullins, Kellen McGregor, Jake Garland, Anthony Sepe, Cory Elder" },
+  { name: "Crown the Empire",      city: "Dallas, TX",      country: "USA", lat: 32.790, lng: -96.810,  genre: "Heavy Metal",     formed: 2010, members: "Andy Leo, David Escamilla, Brent Taddie, Brandon Hoover, Hayden Tree" },
+
+  // --- UK: Post-Britpop / Indie ---
+  { name: "Coldplay",              city: "London",          country: "UK",  lat: 51.520, lng: -0.120,   genre: "Alternative",     formed: 1996, members: "Chris Martin, Jonny Buckland, Guy Berryman, Will Champion" },
+  { name: "Muse",                  city: "Teignmouth",      country: "UK",  lat: 50.546, lng: -3.495,   genre: "Alternative",     formed: 1994, members: "Matthew Bellamy, Chris Wolstenholme, Dominic Howard" },
+  { name: "Arctic Monkeys",        city: "Sheffield",       country: "UK",  lat: 53.383, lng: -1.466,   genre: "Alternative",     formed: 2002, members: "Alex Turner, Jamie Cook, Matt Helders, Nick O'Malley" },
+  { name: "Franz Ferdinand",       city: "Glasgow",         country: "UK",  lat: 55.864, lng: -4.252,   genre: "Alternative",     formed: 2002, members: "Alex Kapranos, Bob Hardy, Nick McCarthy, Paul Thomson" },
+  { name: "The Libertines",        city: "London",          country: "UK",  lat: 51.506, lng: -0.098,   genre: "Alternative",     formed: 1997, members: "Pete Doherty, Carl Barat, John Hassall, Gary Powell" },
+  { name: "Bloc Party",            city: "London",          country: "UK",  lat: 51.534, lng: -0.105,   genre: "Alternative",     formed: 1999, members: "Kele Okereke, Russell Lissack, Gordon Moakes, Matt Tong" },
+  { name: "Kaiser Chiefs",         city: "Leeds",           country: "UK",  lat: 53.800, lng: -1.550,   genre: "Alternative",     formed: 1997, members: "Ricky Wilson, Andrew White, Simon Rix, Nick Baines, Vijay Mistry" },
+  { name: "Kasabian",              city: "Leicester",       country: "UK",  lat: 52.636, lng: -1.133,   genre: "Alternative",     formed: 1997, members: "Tom Meighan, Sergio Pizzorno, Chris Edwards, Ian Matthews" },
+  { name: "The Verve",             city: "Wigan",           country: "UK",  lat: 53.544, lng: -2.630,   genre: "Alternative",     formed: 1989, members: "Richard Ashcroft, Nick McCabe, Simon Jones, Peter Salisbury" },
+  { name: "Travis",                city: "Glasgow",         country: "UK",  lat: 55.870, lng: -4.265,   genre: "Alternative",     formed: 1990, members: "Fran Healy, Andy Dunlop, Douglas Payne, Neil Primrose" },
+  { name: "Feeder",                city: "Newport",         country: "UK",  lat: 51.588, lng: -3.000,   genre: "Alternative",     formed: 1991, members: "Grant Nicholas, Taka Hirose, Karl Brazil" },
+  { name: "Editors",               city: "Birmingham",      country: "UK",  lat: 52.488, lng: -1.910,   genre: "Alternative",     formed: 2002, members: "Tom Smith, Chris Urbanowicz, Russell Leetch, Edward Lay" },
+  { name: "Elbow",                 city: "Bury",            country: "UK",  lat: 53.594, lng: -2.298,   genre: "Alternative",     formed: 1990, members: "Guy Garvey, Mark Potter, Craig Potter, Pete Turner, Richard Jupp" },
+  { name: "Snow Patrol",           city: "Dundee",          country: "UK",  lat: 56.462, lng: -2.970,   genre: "Alternative",     formed: 1994, members: "Gary Lightbody, Nathan Connolly, Jonny Quinn, Paul Wilson, Tom Simpson" },
+  { name: "The Fratellis",         city: "Glasgow",         country: "UK",  lat: 55.860, lng: -4.258,   genre: "Alternative",     formed: 2005, members: "Jon Fratelli, Barry Fratelli, Mince Fratelli" },
+  { name: "Biffy Clyro",           city: "Kilmarnock",      country: "UK",  lat: 55.611, lng: -4.496,   genre: "Alternative",     formed: 1995, members: "Simon Neil, James Johnston, Ben Johnston" },
+  { name: "Enter Shikari",         city: "St Albans",       country: "UK",  lat: 51.753, lng: -0.336,   genre: "Alternative",     formed: 1999, members: "Rou Reynolds, Rory Clewlow, Chris Batten, Rob Rolfe" },
+  { name: "Skunk Anansie",         city: "London",          country: "UK",  lat: 51.498, lng: -0.155,   genre: "Alternative",     formed: 1994, members: "Skin, Ace, Cass Lewis, Mark Richardson" },
+  { name: "Placebo",               city: "London",          country: "UK",  lat: 51.524, lng: -0.112,   genre: "Alternative",     formed: 1994, members: "Brian Molko, Stefan Olsdal, Steve Forrest" },
+  { name: "Spiritualized",         city: "Rugby",           country: "UK",  lat: 52.370, lng: -1.264,   genre: "Alternative",     formed: 1990, members: "Jason Pierce, John Freeland, Doggen Foster..." },
+  { name: "Supergrass",            city: "Oxford",          country: "UK",  lat: 51.754, lng: -1.261,   genre: "Alternative",     formed: 1993, members: "Gaz Coombes, Mick Quinn, Danny Goffey" },
+  { name: "Pulp",                  city: "Sheffield",       country: "UK",  lat: 53.385, lng: -1.471,   genre: "Alternative",     formed: 1978, members: "Jarvis Cocker, Nick Banks, Candida Doyle, Steve Mackey, Mark Webber" },
+  { name: "Blur",                  city: "London",          country: "UK",  lat: 51.516, lng: -0.132,   genre: "Alternative",     formed: 1988, members: "Damon Albarn, Graham Coxon, Alex James, Dave Rowntree" },
+  { name: "Suede",                 city: "London",          country: "UK",  lat: 51.508, lng: -0.102,   genre: "Alternative",     formed: 1989, members: "Brett Anderson, Richard Oakes, Mat Osman, Simon Gilbert, Neil Codling" },
+  { name: "Elastica",              city: "London",          country: "UK",  lat: 51.511, lng: -0.115,   genre: "Punk Rock",       formed: 1992, members: "Justine Frischmann, Donna Matthews, Annie Holland, Justin Welch" },
+
+  // --- Germany / Europe ---
+  { name: "Tokio Hotel",           city: "Magdeburg",       country: "Germany", lat: 52.131, lng: 11.628, genre: "Alternative",   formed: 2001, members: "Bill Kaulitz, Tom Kaulitz, Georg Listing, Gustav Schäfer" },
+  { name: "Lacuna Coil",           city: "Milan",           country: "Italy",   lat: 45.464, lng: 9.190,  genre: "Heavy Metal",   formed: 1994, members: "Cristina Scabbia, Andrea Ferro, Marco Coti Zelati..." },
+  { name: "Within Temptation",     city: "Bergen op Zoom",  country: "Netherlands", lat: 51.497, lng: 4.288, genre: "Heavy Metal", formed: 1996, members: "Sharon den Adel, Robert Westerholt, Martijn Spierenburg, Jeroen van Veen..." },
+  { name: "Epica",                 city: "Deurne",          country: "Netherlands", lat: 51.454, lng: 5.786, genre: "Heavy Metal", formed: 2002, members: "Simone Simons, Mark Jansen, Coen Janssen, Rob van der Loo, Arien van Weesenbeek, Isaac Delahaye" },
+  { name: "Delain",                city: "Amsterdam",       country: "Netherlands", lat: 52.370, lng: 4.895, genre: "Heavy Metal", formed: 2002, members: "Charlotte Wessels, Martijn Westerholt, Timo Somers, Otto Schimmelpenninck van der Oye, Joey de Boer" },
+  { name: "Apocalyptica",          city: "Helsinki",        country: "Finland",    lat: 60.172, lng: 24.942, genre: "Heavy Metal", formed: 1993, members: "Eicca Toppinen, Paavo Lötjönen, Perttu Kivilaakso, Mikko Sirén" },
+  { name: "Children of Bodom",     city: "Espoo",           country: "Finland",    lat: 60.205, lng: 24.657, genre: "Heavy Metal", formed: 1993, members: "Alexi Laiho, Janne Wirman, Roope Latvala, Henkka Blacksmith, Jaska Raatikainen" },
+  { name: "Stratovarius",          city: "Helsinki",        country: "Finland",    lat: 60.165, lng: 24.930, genre: "Heavy Metal", formed: 1984, members: "Timo Kotipelto, Matias Kupiainen, Jens Johansson, Lauri Porra, Rolf Pilve" },
+  { name: "Sonata Arctica",        city: "Kemi",            country: "Finland",    lat: 65.734, lng: 24.564, genre: "Heavy Metal", formed: 1996, members: "Tony Kakko, Elias Viljanen, Henrik Klingenberg, Pasi Kauppinen, Tommy Portimo" },
+  { name: "Lordi",                 city: "Rovaniemi",       country: "Finland",    lat: 66.502, lng: 25.730, genre: "Heavy Metal", formed: 1992, members: "Mr. Lordi, Amen, Ox, Mana, Hella" },
+  { name: "Amon Amarth",           city: "Tumba",           country: "Sweden",     lat: 59.197, lng: 17.830, genre: "Heavy Metal", formed: 1992, members: "Johan Hegg, Olavi Mikkonen, Johan Söderberg, Ted Lundström, Jocke Wallgren" },
+  { name: "In Flames",             city: "Gothenburg",      country: "Sweden",     lat: 57.707, lng: 11.967, genre: "Heavy Metal", formed: 1990, members: "Anders Fridén, Björn Gelotte, Peter Iwers, Daniel Svensson, Niclas Engelin" },
+  { name: "Dark Tranquillity",     city: "Gothenburg",      country: "Sweden",     lat: 57.710, lng: 11.972, genre: "Heavy Metal", formed: 1989, members: "Mikael Stanne, Niklas Sundin, Martin Henriksson, Anders Jivarp, Martin Brändström, Pontus Engborg" },
+  { name: "Soilwork",              city: "Helsingborg",     country: "Sweden",     lat: 56.046, lng: 12.694, genre: "Heavy Metal", formed: 1995, members: "Björn Strid, David Andersson, Sylvain Coudret, Markus Wibom, Dirk Verbeuren" },
+  { name: "Arch Enemy",            city: "Halmstad",        country: "Sweden",     lat: 56.674, lng: 12.857, genre: "Heavy Metal", formed: 1996, members: "Alissa White-Gluz, Michael Amott, Jeff Loomis, Sharlee D'Angelo, Daniel Erlandsson" },
+  { name: "Opeth",                 city: "Stockholm",       country: "Sweden",     lat: 59.332, lng: 18.075, genre: "Progressive Rock", formed: 1990, members: "Mikael Åkerfeldt, Fredrik Åkesson, Martin Mendez, Martin Axenrot, Joakim Svalberg" },
+  { name: "Katatonia",             city: "Stockholm",       country: "Sweden",     lat: 59.338, lng: 18.082, genre: "Heavy Metal", formed: 1991, members: "Jonas Renkse, Anders Nyström, Roger Öjersson, Niklas Sandin, Daniel Moilanen" },
+  { name: "Meshuggah",             city: "Umeå",            country: "Sweden",     lat: 63.826, lng: 20.263, genre: "Heavy Metal", formed: 1987, members: "Jens Kidman, Fredrik Thordendal, Mårten Hagström, Dick Lövgren, Tomas Haake" },
+  { name: "Sabaton",               city: "Falun",           country: "Sweden",     lat: 60.606, lng: 15.636, genre: "Heavy Metal", formed: 1999, members: "Joakim Brodén, Pär Sundström, Tommy Johansson, Hannes Van Dahl, Chris Rörland" },
+  { name: "HammerFall",            city: "Gothenburg",      country: "Sweden",     lat: 57.715, lng: 11.975, genre: "Heavy Metal", formed: 1993, members: "Joacim Cans, Oscar Dronjak, Pontus Norgren, Fredrik Larsson, David Wallin" },
+  { name: "Raubtier",              city: "Linköping",       country: "Sweden",     lat: 58.413, lng: 15.625, genre: "Heavy Metal", formed: 2007, members: "JP Andersen, Robin Lindqvist" },
+  { name: "Powerwolf",             city: "Aachen",          country: "Germany",    lat: 50.776, lng: 6.084,  genre: "Heavy Metal", formed: 2003, members: "Attila Dorn, Falk Maria Schlegel, Charles Greywolf, Matthew Greywolf, Roel van Helden" },
+  { name: "Helloween",             city: "Hamburg",         country: "Germany",    lat: 53.551, lng: 9.993,  genre: "Heavy Metal", formed: 1984, members: "Michael Kiske, Andi Deris, Michael Weikath, Markus Grosskopf, Dani Löble, Kai Hansen, Sascha Gerstner" },
+  { name: "Blind Guardian",        city: "Krefeld",         country: "Germany",    lat: 51.337, lng: 6.558,  genre: "Heavy Metal", formed: 1984, members: "Hansi Kürsch, André Olbrich, Marcus Siepen, Frederik Ehmke, Thomen Stauch" },
+  { name: "Gamma Ray",             city: "Hamburg",         country: "Germany",    lat: 53.557, lng: 9.999,  genre: "Heavy Metal", formed: 1989, members: "Kai Hansen, Dirk Schlächter, Frank Beck, Michael Ehré" },
+  { name: "Accept",                city: "Solingen",        country: "Germany",    lat: 51.173, lng: 7.083,  genre: "Heavy Metal", formed: 1976, members: "Mark Tornillo, Wolf Hoffmann, Uwe Lulis, Martin Motnik, Christopher Williams" },
+  { name: "Rage",                  city: "Herne",           country: "Germany",    lat: 51.537, lng: 7.220,  genre: "Heavy Metal", formed: 1984, members: "Peter 'Peavy' Wagner, Roland Grapow, André Hilgers" },
+  { name: "Kreator",               city: "Essen",           country: "Germany",    lat: 51.457, lng: 7.012,  genre: "Heavy Metal", formed: 1982, members: "Mille Petrozza, Sami Yli-Sirniö, Christian Giesler, Jürgen Reil" },
+  { name: "Sodom",                 city: "Gelsenkirchen",   country: "Germany",    lat: 51.517, lng: 7.086,  genre: "Heavy Metal", formed: 1981, members: "Tom Angelripper, Yorck Segatz, Toni Merkel" },
+
+  // --- スペイン / ラテン ---
+  { name: "Mago de Oz",            city: "Madrid",          country: "Spain",      lat: 40.420, lng: -3.710, genre: "Heavy Metal",  formed: 1988, members: "Javier Martínez, Mohamed Hadouchi, Txus di Fellatio, Zeta..." },
+  { name: "La Oreja de Van Gogh",  city: "San Sebastián",   country: "Spain",      lat: 43.318, lng: -1.981, genre: "Alternative",  formed: 1996, members: "Leire Martínez, Xabi San Martín, Álvaro Fuentes, Haritz Garde, Pablo Benegas" },
+  { name: "Dover",                 city: "Madrid",          country: "Spain",      lat: 40.425, lng: -3.715, genre: "Alternative",  formed: 1990, members: "Amparo Llanos, Cristina Llanos, Íñigo Muñoz, Henry Buendía" },
+  { name: "Los Planetas",          city: "Granada",         country: "Spain",      lat: 37.177, lng: -3.599, genre: "Alternative",  formed: 1993, members: "J, Florent Muñoz, Banin Muñoz, Eric Jiménez, Segundo Carrera" },
+  { name: "Extremoduro",           city: "Badajoz",         country: "Spain",      lat: 38.879, lng: -6.970, genre: "Hard Rock",    formed: 1987, members: "Robe Iniesta, Iñaki Antón, Rafael Gutiérrez, Jorge Pérez" },
+
+  // --- オーストラリア / ニュージーランド ---
+  { name: "Silverchair",           city: "Newcastle, NSW",  country: "Australia",  lat: -32.926, lng: 151.777, genre: "Grunge",     formed: 1992, members: "Daniel Johns, Ben Gillies, Chris Joannou" },
+  { name: "Powderfinger",          city: "Brisbane",        country: "Australia",  lat: -27.467, lng: 153.028, genre: "Alternative", formed: 1989, members: "Bernard Fanning, Darren Middleton, Jon Coghill, Ian Haug, John Collins" },
+  { name: "Jet",                   city: "Melbourne",       country: "Australia",  lat: -37.815, lng: 144.963, genre: "Alternative", formed: 2001, members: "Nic Cester, Cameron Muncey, Mark Wilson, Chris Cester" },
+  { name: "Wolfmother",            city: "Sydney",          country: "Australia",  lat: -33.873, lng: 151.217, genre: "Hard Rock",   formed: 2000, members: "Andrew Stockdale, Chris Ross, Myles Heskett" },
+  { name: "The Vines",             city: "Sydney",          country: "Australia",  lat: -33.882, lng: 151.224, genre: "Alternative", formed: 1994, members: "Craig Nicholls, Patrick Matthews, Ryan Griffiths, Hamish Rosser" },
+  { name: "Crowded House",         city: "Melbourne",       country: "Australia",  lat: -37.820, lng: 144.968, genre: "Alternative", formed: 1985, members: "Neil Finn, Nick Seymour, Mark Hart, Matt Sherrod" },
+  { name: "You Am I",              city: "Sydney",          country: "Australia",  lat: -33.878, lng: 151.209, genre: "Alternative", formed: 1989, members: "Tim Rogers, Davey Lane, Andy Kent, Russell Hopkinson" },
+  { name: "The Living End",        city: "Melbourne",       country: "Australia",  lat: -37.823, lng: 144.970, genre: "Punk Rock",   formed: 1994, members: "Chris Cheney, Scott Owen, Andy Strachan" },
+  { name: "Shihad",                city: "Wellington",      country: "New Zealand", lat: -41.286, lng: 174.776, genre: "Heavy Metal", formed: 1988, members: "Jon Toogood, Phil Knight, Karl Kippenberger, Tom Larkin" },
+  { name: "The Datsuns",           city: "Cambridge",       country: "New Zealand", lat: -37.885, lng: 175.473, genre: "Hard Rock",  formed: 1996, members: "Dolf de Datsun, Christian Livingstone, Philip Somervell, Matt Osment" },
+
+  // --- ブラジル / アルゼンチン ---
+  { name: "Angra",                 city: "São Paulo",       country: "Brazil",     lat: -23.548, lng: -46.636, genre: "Heavy Metal", formed: 1991, members: "Fabio Lione, Kiko Loureiro, Rafael Bittencourt, Felipe Andreoli, Bruno Valverde" },
+  { name: "Soulfly",               city: "Phoenix, AZ",     country: "USA",        lat: 33.448, lng: -112.074, genre: "Heavy Metal", formed: 1997, members: "Max Cavalera, Marc Rizzo, Tony Campos, Zyon Cavalera" },
+  { name: "Krisiun",               city: "Porto Alegre",    country: "Brazil",     lat: -30.033, lng: -51.230, genre: "Heavy Metal", formed: 1990, members: "Alex Camargo, Moyses Kolesne, Max Kolesne" },
+  { name: "Almafuerte",            city: "Buenos Aires",    country: "Argentina",  lat: -34.614, lng: -58.445, genre: "Heavy Metal", formed: 1995, members: "Ricardo Iorio, Claudio Marciello, Ezequiel Ros" },
+  { name: "Rata Blanca",           city: "Buenos Aires",    country: "Argentina",  lat: -34.620, lng: -58.450, genre: "Heavy Metal", formed: 1986, members: "Gabriel Mango, Walter Giardino, Sergio Berdichevsky, Javier Retamozo, Adrián Berra" },
+
+  // --- メキシコ ---
+  { name: "Café Tacvba",           city: "Naucalpan",       country: "Mexico",     lat: 19.476, lng: -99.236, genre: "Alternative",  formed: 1989, members: "Rubén Albarrán, Emmanuel del Real, Joselo Rangel, Enrique Rangel" },
+  { name: "Molotov",               city: "Mexico City",     country: "Mexico",     lat: 19.432, lng: -99.133, genre: "Punk Rock",    formed: 1995, members: "Tito Fuentes, Randy Ebright, Micky Huidobro, Paco Ayala" },
+  { name: "Los Caifanes",          city: "Mexico City",     country: "Mexico",     lat: 19.428, lng: -99.128, genre: "Alternative",  formed: 1987, members: "Saúl Hernández, Alejandro Marcovich, Sabo Romo, Alfonso André" },
+
+  // --- 日本 (J-Rock / Visual Kei / 追加) ---
+  { name: "L'Arc-en-Ciel",        city: "大阪",            country: "Japan",      lat: 34.698, lng: 135.498, genre: "J-Rock",       formed: 1991, members: "hyde, ken, tetsuya, yukihiro" },
+  { name: "GLAY",                  city: "函館",            country: "Japan",      lat: 41.773, lng: 140.728, genre: "J-Rock",       formed: 1988, members: "TERU, TAKURO, HISASHI, JIRO" },
+  { name: "Mr.Children",           city: "神奈川",          country: "Japan",      lat: 35.447, lng: 139.643, genre: "J-Rock",       formed: 1989, members: "桜井和寿, 田原健一, 中川敬輔, 鈴木英哉" },
+  { name: "Bump of Chicken",       city: "成田",            country: "Japan",      lat: 35.777, lng: 140.318, genre: "J-Rock",       formed: 1994, members: "藤原基央, 増川弘明, 直井由文, 升秀夫" },
+  { name: "ONE OK ROCK",           city: "東京",            country: "Japan",      lat: 35.693, lng: 139.703, genre: "Hard Rock",    formed: 2005, members: "Taka, Toru, Ryota, Tomoya" },
+  { name: "Coldrain",              city: "名古屋",          country: "Japan",      lat: 35.181, lng: 136.906, genre: "Heavy Metal",  formed: 2007, members: "Masato, Katsuma, Sugi, Y.K.C." },
+  { name: "Crossfaith",            city: "大阪",            country: "Japan",      lat: 34.700, lng: 135.505, genre: "Heavy Metal",  formed: 2006, members: "Kenta Koie, Koie Kenta, Terufumi Tamano, Hiroki Ikegawa, Tatsuya Amano" },
+  { name: "SiM",                   city: "神奈川",          country: "Japan",      lat: 35.450, lng: 139.650, genre: "Heavy Metal",  formed: 2008, members: "MAH, SIN, GODRi, SHOW-HATE" },
+  { name: "MUCC",                  city: "茨城",            country: "Japan",      lat: 36.341, lng: 140.446, genre: "J-Rock",       formed: 1997, members: "逹瑯, ミヤ, YUKKE, SATOchi" },
+  { name: "lynch.",                city: "名古屋",          country: "Japan",      lat: 35.183, lng: 136.910, genre: "J-Rock",       formed: 2004, members: "葉月, 玲央, 明徳, 悠介, 晁直" },
+  { name: "the GazettE",           city: "神奈川",          country: "Japan",      lat: 35.452, lng: 139.647, genre: "J-Rock",       formed: 2002, members: "RUKI, REITA, AOI, URUHA, KAI" },
+  { name: "Versailles",            city: "東京",            country: "Japan",      lat: 35.686, lng: 139.695, genre: "Heavy Metal",  formed: 2007, members: "KAMIJO, Hizaki, Teru, Jasmine You, Yuki" },
+  { name: "An Cafe",               city: "東京",            country: "Japan",      lat: 35.697, lng: 139.712, genre: "J-Rock",       formed: 2003, members: "Miku, Kanon, Yuuki, Bou, Teruki" },
+  { name: "MALICE MIZER",         city: "東京",             country: "Japan",      lat: 35.682, lng: 139.688, genre: "J-Rock",       formed: 1992, members: "Mana, Közi, Yu~ki, Gackt, Kami" },
+  { name: "Miyavi",                city: "大阪",            country: "Japan",      lat: 34.695, lng: 135.502, genre: "J-Rock",       formed: 2002, members: "雅-MIYAVI-" },
+  { name: "Gazette",               city: "神奈川",          country: "Japan",      lat: 35.456, lng: 139.652, genre: "J-Rock",       formed: 2002, members: "RUKI, REITA, AOI, URUHA, KAI" },
+  { name: "NIGHTMARE",             city: "仙台",            country: "Japan",      lat: 38.269, lng: 140.872, genre: "J-Rock",       formed: 2000, members: "Yomi, Ruka, Ni~ya, Hitsugi, Sakito" },
+  { name: "SID",                   city: "東京",            country: "Japan",      lat: 35.690, lng: 139.705, genre: "J-Rock",       formed: 2003, members: "Mao, Shinji, Yuuya, Aki" },
+  { name: "Plastic Tree",          city: "東京",            country: "Japan",      lat: 35.695, lng: 139.708, genre: "J-Rock",       formed: 1993, members: "有村竜太朗, 長谷川正, 佐藤ケンジ, 植田真梨恵" },
+  { name: "RAD WIMPS",             city: "神奈川",          country: "Japan",      lat: 35.460, lng: 139.655, genre: "J-Rock",       formed: 2001, members: "野田洋次郎, 桑原彰, 武田祐介, 山口智史" },
+  { name: "Asian Kung-Fu Generation",city:"横浜",           country: "Japan",      lat: 35.445, lng: 139.640, genre: "J-Rock",       formed: 1996, members: "後藤正文, 喜多建介, 山田貴洋, 伊地知潔" },
+  { name: "ELLEGARDEN",            city: "千葉",            country: "Japan",      lat: 35.610, lng: 140.123, genre: "Punk Rock",    formed: 1998, members: "細美武士, 生形真一, 高田雄一, 田邊駿一" },
+  { name: "Hi-STANDARD",           city: "東京",            country: "Japan",      lat: 35.688, lng: 139.698, genre: "Punk Rock",    formed: 1991, members: "難波章浩, 横山健, 恒岡章" },
+  { name: "10-FEET",               city: "京都",            country: "Japan",      lat: 35.012, lng: 135.768, genre: "Punk Rock",    formed: 1997, members: "TAKUMA, NAOKI, KOUICHI" },
+  { name: "BRAHMAN",               city: "東京",            country: "Japan",      lat: 35.692, lng: 139.700, genre: "Punk Rock",    formed: 1995, members: "TOSHI-LOW, KOHKI, MAKOTO, JUN-LOW" },
+  { name: "Ken Yokoyama",          city: "東京",            country: "Japan",      lat: 35.695, lng: 139.702, genre: "Punk Rock",    formed: 2004, members: "横山健, YUSUKE, KOJI" },
+  { name: "GOING STEADY",          city: "東京",            country: "Japan",      lat: 35.683, lng: 139.693, genre: "Punk Rock",    formed: 1998, members: "峯田和伸, 中川翔太, 矢川葵, 市川剛" },
+  { name: "MONGOL800",             city: "沖縄",            country: "Japan",      lat: 26.212, lng: 127.680, genre: "Punk Rock",    formed: 1998, members: "川上洋平, 上江洌清作, 山田亮" },
+  { name: "04 Limited Sazabys",    city: "名古屋",          country: "Japan",      lat: 35.185, lng: 136.908, genre: "Punk Rock",    formed: 2009, members: "GEN, KOUHEI, RYU, HIROKAZ" },
+  { name: "WANIMA",                city: "熊本",            country: "Japan",      lat: 32.803, lng: 130.708, genre: "Punk Rock",    formed: 2010, members: "KENTA, FUJI, KOJIRO" },
+  { name: "King Gnu",              city: "東京",            country: "Japan",      lat: 35.698, lng: 139.715, genre: "Alternative",  formed: 2015, members: "常田大希, 井口理, 新井和輝, 勢喜遊" },
+  { name: "Official髭男dism",      city: "松江",            country: "Japan",      lat: 35.472, lng: 133.051, genre: "Alternative",  formed: 2012, members: "藤原聡, 小笹大輔, 楢崎誠, 松浦匡希" },
+  { name: "BUCK-TICK",             city: "群馬",            country: "Japan",      lat: 36.393, lng: 139.063, genre: "Alternative",  formed: 1983, members: "Atsushi Sakurai, Hisashi Imai, Yutaka Higuchi, Yuuta Higuchi, Toll Yagami" },
+  { name: "SOPHIA",                city: "東京",            country: "Japan",      lat: 35.688, lng: 139.702, genre: "J-Rock",       formed: 1993, members: "松岡充, 都啓一, 三松亮, 豊田和貴, 黒柳能生" },
+  { name: "SIAM SHADE",            city: "東京",            country: "Japan",      lat: 35.691, lng: 139.706, genre: "J-Rock",       formed: 1991, members: "DAITA, NATIN, KAZUMA, HIDEKI, SHOW" },
+  { name: "PIERROT",               city: "大阪",            country: "Japan",      lat: 34.695, lng: 135.505, genre: "J-Rock",       formed: 1994, members: "キリト, アイジ, 貴水博之, TAK, KOHTA" },
+  { name: "deadman",               city: "東京",            country: "Japan",      lat: 35.685, lng: 139.696, genre: "J-Rock",       formed: 2002, members: "れいち, ayo, 梶浦, 洪栄龍" },
+
+  // --- 韓国 ---
+  { name: "YB (Yoon Band)",        city: "Seoul",           country: "South Korea", lat: 37.566, lng: 126.978, genre: "Hard Rock",  formed: 1995, members: "윤도현, 허준, 김진원, 박태희, 스캇" },
+  { name: "Nell",                  city: "Seoul",           country: "South Korea", lat: 37.570, lng: 126.980, genre: "Alternative", formed: 1999, members: "Kim Jong-wan, Lee Jae-kyung, Jung Jae-won, Lee Jung-hoon" },
+  { name: "The Rose",              city: "Seoul",           country: "South Korea", lat: 37.562, lng: 126.974, genre: "Alternative", formed: 2017, members: "Woosung, Dojoon, Jaehyeong, Hajoon" },
+
+  // --- 中国 / 台湾 ---
+  { name: "Mayday (五月天)",       city: "Taipei",          country: "Taiwan",     lat: 25.033, lng: 121.564, genre: "Alternative",  formed: 1997, members: "阿信, 怪獸, 石頭, 瑪莎, 冠佑" },
+  { name: "Sodagreen (蘇打綠)",    city: "Taipei",          country: "Taiwan",     lat: 25.038, lng: 121.570, genre: "Alternative",  formed: 2003, members: "吳青峰, 馥仲, 謙, 小威, 阿福, 龍龍" },
+  { name: "PK14",                  city: "Beijing",         country: "China",      lat: 39.905, lng: 116.391, genre: "Alternative",  formed: 1999, members: "杨海崧, 徐博, 方路, 武锐" },
+  { name: "Re-TROS",               city: "Beijing",         country: "China",      lat: 39.910, lng: 116.397, genre: "Alternative",  formed: 2003, members: "华东, 冯慈平, 卜卉" },
+  { name: "Reflector",             city: "Shanghai",        country: "China",      lat: 31.228, lng: 121.474, genre: "Heavy Metal",  formed: 2000, members: "Kang Mao, Wei Wei, Jiang Dong, Li Jian" },
+
+  // --- ロシア ---
+  { name: "Aria (Ария)",           city: "Moscow",          country: "Russia",     lat: 55.755, lng: 37.617, genre: "Heavy Metal",   formed: 1985, members: "Михаил Житняков, Владимир Холстинин, Сергей Попов, Виталий Дубинин, Максим Удалов" },
+  { name: "Кино (Kino)",           city: "St. Petersburg",  country: "Russia",     lat: 59.934, lng: 30.335, genre: "Alternative",   formed: 1982, members: "Виктор Цой, Юрий Каспарян, Михаил Науменко, Георгий Гурьянов" },
+  { name: "Агата Кристи (Agata Kristi)", city: "Yekaterinburg", country: "Russia", lat: 56.838, lng: 60.598, genre: "Alternative",  formed: 1985, members: "Вадим Самойлов, Глеб Самойлов" },
+  { name: "Би-2 (Bi-2)",           city: "Baranavichy",     country: "Belarus",    lat: 53.128, lng: 26.014, genre: "Alternative",   formed: 1988, members: "Лёва, Шура" },
+  { name: "Машина Времени (Mashina Vremeni)", city:"Moscow", country: "Russia",    lat: 55.761, lng: 37.625, genre: "Classic Rock",  formed: 1969, members: "Андрей Макаревич, Александр Кутиков, Евгений Маргулис, Валерий Ефремов" },
+
+  // --- イスラエル ---
+  { name: "Orphaned Land",         city: "Petah Tikva",     country: "Israel",     lat: 32.089, lng: 34.888, genre: "Heavy Metal",   formed: 1991, members: "Kobi Farhi, Matti Svatizky, Uri Zelcha, Yossi Saharon, Chen Balbus" },
+  { name: "Subterranean Masquerade",city:"Tel Aviv",         country: "Israel",     lat: 32.087, lng: 34.798, genre: "Heavy Metal",   formed: 2000, members: "Tomer Pink, Shai Yallin, Teutonic Wonder..." },
+
+  // --- インド ---
+  { name: "Pentagram",             city: "Delhi",           country: "India",      lat: 28.614, lng: 77.209, genre: "Heavy Metal",   formed: 1994, members: "Vishal Dadlani, Randolph Correia, Vinod Khanna, Reuben Bhatt, Arjun Sankaran" },
+  { name: "Parikrama",             city: "Delhi",           country: "India",      lat: 28.618, lng: 77.214, genre: "Hard Rock",     formed: 1991, members: "Subir Malik, Nitin Malik, Sonam Sherpa, Saurabh Choudhary, Gaurav Balani" },
+  { name: "Thermal and a Quarter", city: "Bangalore",       country: "India",      lat: 12.972, lng: 77.594, genre: "Alternative",   formed: 1996, members: "Bruce Lee Mani, Rajeev Rajagopal, Leslie Charles" },
+
+  // --- その他 欧州 ---
+  { name: "Massive Attack",        city: "Bristol",         country: "UK",         lat: 51.455, lng: -2.588, genre: "Alternative",   formed: 1988, members: "Robert Del Naja, Grant Marshall" },
+  { name: "Portishead",            city: "Bristol",         country: "UK",         lat: 51.380, lng: -2.765, genre: "Alternative",   formed: 1991, members: "Beth Gibbons, Geoff Barrow, Adrian Utley" },
+  { name: "Primal Scream",         city: "Glasgow",         country: "UK",         lat: 55.867, lng: -4.260, genre: "Alternative",   formed: 1982, members: "Bobby Gillespie, Andrew Innes, Robert Young..." },
+  { name: "My Bloody Valentine",   city: "Dublin",          country: "Ireland",    lat: 53.342, lng: -6.267, genre: "Alternative",   formed: 1983, members: "Kevin Shields, Bilinda Butcher, Colm Ó Cíosóig, Debbie Googe" },
+  { name: "Sigur Rós",             city: "Reykjavik",       country: "Iceland",    lat: 64.135, lng: -21.895, genre: "Alternative",  formed: 1994, members: "Jónsi, Georg Hólm, Orri Páll Dýrason" },
+  { name: "Of Monsters and Men",   city: "Reykjavik",       country: "Iceland",    lat: 64.130, lng: -21.889, genre: "Alternative",  formed: 2010, members: "Nanna Bryndís Hilmarsdóttir, Ragnar Þórhallsson, Brynjar Leifsson, Arnar Rósenkranz Hilmarsson, Arnar Guðjónsson" },
+  { name: "Kaleo",                 city: "Mosfellsbær",     country: "Iceland",    lat: 64.166, lng: -21.691, genre: "Hard Rock",    formed: 2012, members: "JJ Julius Son, Daniel Kristjansson, Rubin Pollock, David Antonsson" },
+  { name: "Hozier",                city: "Bray",            country: "Ireland",    lat: 53.201, lng: -6.099, genre: "Alternative",   formed: 2012, members: "Andrew Hozier-Byrne" },
+  { name: "The Script",            city: "Dublin",          country: "Ireland",    lat: 53.345, lng: -6.272, genre: "Alternative",   formed: 2001, members: "Danny O'Donoghue, Mark Sheehan, Glen Power" },
+  { name: "Airbourne",             city: "Warrnambool",     country: "Australia",  lat: -38.383, lng: 142.485, genre: "Hard Rock",   formed: 2003, members: "Joel O'Keeffe, Ryan O'Keeffe, Justin Street, David Roads" },
+  { name: "Parkway Drive",         city: "Byron Bay",       country: "Australia",  lat: -28.647, lng: 153.613, genre: "Heavy Metal", formed: 2002, members: "Winston McCall, Jeff Ling, Luke Kilpatrick, Jia O'Connor, Ben Gordon" },
+  { name: "Thy Art Is Murder",     city: "Sydney",          country: "Australia",  lat: -33.875, lng: 151.215, genre: "Heavy Metal", formed: 2006, members: "CJ McMahon, Andy Marsh, Kevin Butler, Sean Delander, Jesse Beahler" },
+  { name: "Polaris",               city: "Sydney",          country: "Australia",  lat: -33.882, lng: 151.220, genre: "Heavy Metal", formed: 2009, members: "Jamie Hails, Ryan Siew, Rick Schneider, Jake Steinhauser, Daniel Furnari" },
+
+  // --- 南アフリカ ---
+  { name: "Seether",               city: "Pretoria",        country: "South Africa", lat: -25.747, lng: 28.188, genre: "Hard Rock",  formed: 1999, members: "Shaun Morgan, Dale Stewart, John Humphrey, Corey Lowery" },
+  { name: "Fokofpolisiekar",       city: "Cape Town",       country: "South Africa", lat: -33.924, lng: 18.424, genre: "Punk Rock",  formed: 2003, members: "Francois van Coke, Hunter Kennedy, Wynand Myburgh, Adriaan Brand, Johnny de Ridder" },
+
+  // --- アフリカ ---
+  { name: "Afropunk (Keziah Jones)",city:"Lagos",           country: "Nigeria",    lat: 6.455, lng: 3.384,  genre: "Alternative",    formed: 1989, members: "Keziah Jones" },
+
+  // --- カナダ 追加 ---
+  { name: "Billy Talent",          city: "Mississauga, ON", country: "Canada",     lat: 43.589, lng: -79.644, genre: "Punk Rock",    formed: 1993, members: "Benjamin Kowalewicz, Ian D'Sa, Jon Gallant, Aaron Solowoniuk" },
+  { name: "Alexisonfire",          city: "St. Catharines, ON", country: "Canada",  lat: 43.159, lng: -79.246, genre: "Heavy Metal",  formed: 2001, members: "George Pettit, Dallas Green, Wade MacNeil, Chris Steele, Jordan Hastings" },
+  { name: "Protest the Hero",      city: "Whitby, ON",      country: "Canada",     lat: 43.897, lng: -78.942, genre: "Heavy Metal",  formed: 2002, members: "Rody Walker, Tim Millar, Luke Hoskin, Arif Mirabdolbaghi, Mike Ieradi" },
+  { name: "Danko Jones",           city: "Toronto",         country: "Canada",     lat: 43.653, lng: -79.353, genre: "Hard Rock",    formed: 1996, members: "Danko Jones, John Calabrese, Rich Knox" },
+  { name: "The Weakerthans",       city: "Winnipeg, MB",    country: "Canada",     lat: 49.899, lng: -97.138, genre: "Punk Rock",    formed: 1997, members: "John K. Samson, Greg Smith, Stephen Carroll, Jason Tait" },
+  { name: "Metric",                city: "Toronto",         country: "Canada",     lat: 43.648, lng: -79.355, genre: "Alternative",  formed: 1998, members: "Emily Haines, James Shaw, Joshua Winstead, Joules Scott-Key" },
+  { name: "Tegan and Sara",        city: "Calgary, AB",     country: "Canada",     lat: 51.048, lng: -114.058, genre: "Alternative", formed: 1995, members: "Tegan Quin, Sara Quin" },
+
+  // --- USA 追加インディー ---
+  { name: "Vampire Weekend",       city: "New York",        country: "USA",        lat: 40.725, lng: -73.994, genre: "Alternative",  formed: 2006, members: "Ezra Koenig, Rostam Batmanglij, Chris Baio, Chris Tomson" },
+  { name: "MGMT",                  city: "Middletown, CT",  country: "USA",        lat: 41.563, lng: -72.655, genre: "Alternative",  formed: 2002, members: "Andrew VanWyngarden, Ben Goldwasser" },
+  { name: "Fleet Foxes",           city: "Seattle, WA",     country: "USA",        lat: 47.610, lng: -122.340, genre: "Alternative", formed: 2006, members: "Robin Pecknold, Skyler Skjelset, Casey Wescott, Christian Wargo, Morgan Henderson" },
+  { name: "Grizzly Bear",          city: "Brooklyn, NY",    country: "USA",        lat: 40.678, lng: -73.944, genre: "Alternative",  formed: 2002, members: "Ed Droste, Daniel Rossen, Chris Taylor, Christopher Bear" },
+  { name: "Animal Collective",     city: "Baltimore, MD",   country: "USA",        lat: 39.290, lng: -76.612, genre: "Alternative",  formed: 2000, members: "Panda Bear, Avey Tare, Geologist, Deakin" },
+  { name: "Bon Iver",              city: "Eau Claire, WI",  country: "USA",        lat: 44.811, lng: -91.499, genre: "Alternative",  formed: 2006, members: "Justin Vernon, S. Carey, Michael Lewis, Matthew McCaughan, Rob Moose" },
+  { name: "Sufjan Stevens",        city: "Petoskey, MI",    country: "USA",        lat: 45.374, lng: -84.955, genre: "Alternative",  formed: 2000, members: "Sufjan Stevens" },
+  { name: "Iron & Wine",           city: "Miami, FL",       country: "USA",        lat: 25.774, lng: -80.194, genre: "Alternative",  formed: 2001, members: "Sam Beam" },
+  { name: "Wilco",                 city: "Chicago, IL",     country: "USA",        lat: 41.876, lng: -87.626, genre: "Alternative",  formed: 1994, members: "Jeff Tweedy, John Stirratt, Glenn Kotche, Mikael Jorgensen, Pat Sansone, Nels Cline" },
+  { name: "The Hold Steady",       city: "Minneapolis, MN", country: "USA",        lat: 44.979, lng: -93.265, genre: "Alternative",  formed: 2004, members: "Craig Finn, Tad Kubler, Galen Polivka, Bobby Drake, Franz Nicolay" },
+  { name: "Spoon",                 city: "Austin, TX",      country: "USA",        lat: 30.267, lng: -97.743, genre: "Alternative",  formed: 1993, members: "Britt Daniel, Jim Eno, Rob Pope, Eric Harvey, Gerardo Larios" },
+  { name: "Built to Spill",        city: "Boise, ID",       country: "USA",        lat: 43.615, lng: -116.202, genre: "Alternative", formed: 1992, members: "Doug Martsch, Brett Nelson, Scott Plouf" },
+  { name: "Explosions in the Sky", city: "Austin, TX",      country: "USA",        lat: 30.270, lng: -97.748, genre: "Alternative",  formed: 1999, members: "Mark Smith, Munaf Rayani, Michael James, Chris Hrasky" },
+  { name: "Godspeed You! Black Emperor", city:"Montreal",   country: "Canada",     lat: 45.507, lng: -73.553, genre: "Alternative",  formed: 1994, members: "Efrim Manuel Menuck, Thierry Amar, Mauro Pezzente..." },
+  { name: "Mogwai",                city: "Glasgow",         country: "UK",         lat: 55.863, lng: -4.255, genre: "Alternative",   formed: 1995, members: "Stuart Braithwaite, Barry Burns, Dominic Aitchison, Martin Bulloch, John Cummings" },
+  { name: "65daysofstatic",        city: "Sheffield",       country: "UK",         lat: 53.379, lng: -1.468, genre: "Alternative",   formed: 2001, members: "Paul Wolinski, Rob Jones, Joe Shrewsbury, Simon Wright" },
+  { name: "Battles",               city: "New York",        country: "USA",        lat: 40.718, lng: -73.986, genre: "Alternative",  formed: 2002, members: "Ian Williams, Dave Konopka, John Stanier" },
+  { name: "TV on the Radio",       city: "Brooklyn, NY",    country: "USA",        lat: 40.680, lng: -73.948, genre: "Alternative",  formed: 2001, members: "Tunde Adebimpe, David Sitek, Kyp Malone, Jaleel Bunton, Gerard Smith" },
+  { name: "LCD Soundsystem",       city: "New York",        country: "USA",        lat: 40.723, lng: -73.992, genre: "Alternative",  formed: 2002, members: "James Murphy, Nancy Whang, Tyler Pope, Pat Mahoney..." },
+  { name: "Yeah Yeah Yeahs",       city: "New York",        country: "USA",        lat: 40.720, lng: -73.990, genre: "Alternative",  formed: 2000, members: "Karen O, Nick Zinner, Brian Chase" },
+  { name: "Sleater-Kinney",        city: "Olympia, WA",     country: "USA",        lat: 47.039, lng: -122.901, genre: "Punk Rock",   formed: 1994, members: "Corin Tucker, Carrie Brownstein, Janet Weiss" },
+  { name: "Bikini Kill",           city: "Olympia, WA",     country: "USA",        lat: 47.041, lng: -122.905, genre: "Punk Rock",   formed: 1990, members: "Kathleen Hanna, Tobi Vail, Kathi Wilcox, Billy Karren" },
+  { name: "Against Me!",           city: "Gainesville, FL", country: "USA",        lat: 29.651, lng: -82.325, genre: "Punk Rock",    formed: 1997, members: "Laura Jane Grace, James Bowman, Andrew Seward, Atom Willard" },
+  { name: "The Gaslight Anthem",   city: "New Brunswick, NJ",country:"USA",        lat: 40.486, lng: -74.452, genre: "Alternative",  formed: 2006, members: "Brian Fallon, Benny Horowitz, Alex Rosamilia, Alex Levine" },
+  { name: "The Bouncing Souls",    city: "New Brunswick, NJ",country:"USA",        lat: 40.488, lng: -74.448, genre: "Punk Rock",    formed: 1987, members: "Greg Attonito, Pete Steinkopf, Bryan Kienlen, Michael McDermott" },
+  { name: "Hot Water Music",       city: "Gainesville, FL", country: "USA",        lat: 29.653, lng: -82.328, genre: "Punk Rock",    formed: 1993, members: "Chuck Ragan, Chris Wollard, Jason Black, George Rebelo" },
+  { name: "Alkaline Trio",         city: "McHenry, IL",     country: "USA",        lat: 42.358, lng: -88.268, genre: "Punk Rock",    formed: 1996, members: "Matt Skiba, Dan Andriano, Derek Grant" },
+  { name: "Dropkick Murphys",      city: "Boston, MA",      country: "USA",        lat: 42.358, lng: -71.062, genre: "Punk Rock",    formed: 1996, members: "Ken Casey, Al Barr, James Lynch, Matt Kelly, Tim Brennan, Jeff DaRosa, Scruffy Wallace" },
+  { name: "Flogging Molly",        city: "Los Angeles",     country: "USA",        lat: 34.060, lng: -118.295, genre: "Punk Rock",   formed: 1997, members: "Dave King, Bridget Regan, Nathen Maxwell, Dennis Casey, Matt Hensley, Robert Schmidt, Spencer Swain" },
+  { name: "Tiger Army",            city: "Berkeley, CA",    country: "USA",        lat: 37.872, lng: -122.273, genre: "Punk Rock",   formed: 1995, members: "Nick 13, Geoff Kresge, James Meza" },
+  { name: "The Misfits",           city: "Lodi, NJ",        country: "USA",        lat: 40.882, lng: -74.082, genre: "Punk Rock",    formed: 1977, members: "Glenn Danzig, Jerry Only, Doyle Wolfgang von Frankenstein" },
+  { name: "Bad Religion",          city: "Los Angeles",     country: "USA",        lat: 34.063, lng: -118.302, genre: "Punk Rock",   formed: 1980, members: "Greg Graffin, Brett Gurewitz, Jay Bentley, Brian Baker, Mike Dimkich, Jamie Miller" },
+  { name: "NOFX",                  city: "Los Angeles",     country: "USA",        lat: 34.067, lng: -118.310, genre: "Punk Rock",   formed: 1983, members: "Fat Mike, Eric Melvin, El Hefe, Erik Sandin" },
+  { name: "Pennywise",             city: "Hermosa Beach, CA",country:"USA",        lat: 33.863, lng: -118.398, genre: "Punk Rock",   formed: 1988, members: "Jim Lindberg, Fletcher Dragge, Randy Bradbury, Byron McMackin" },
+  { name: "Rancid",                city: "Albany, CA",      country: "USA",        lat: 37.887, lng: -122.298, genre: "Punk Rock",   formed: 1991, members: "Tim Armstrong, Lars Frederiksen, Matt Freeman, Branden Steineckert" },
+  { name: "AFI",                   city: "Ukiah, CA",       country: "USA",        lat: 39.150, lng: -123.208, genre: "Punk Rock",   formed: 1991, members: "Davey Havok, Jade Puget, Hunter Burgan, Adam Carson" },
+  { name: "Rise Against",          city: "Chicago, IL",     country: "USA",        lat: 41.880, lng: -87.632, genre: "Punk Rock",    formed: 1999, members: "Tim McIlrath, Zach Blair, Joe Principe, Brandon Barnes" },
+  { name: "Anti-Flag",             city: "Pittsburgh, PA",  country: "USA",        lat: 40.440, lng: -79.996, genre: "Punk Rock",    formed: 1988, members: "Justin Sane, Pat Thetic, Chris Head, Chris No. 2" },
+
+  // --- USA: Emo ---
+  { name: "Thursday",              city: "New Brunswick, NJ",country:"USA",        lat: 40.490, lng: -74.450, genre: "Alternative",  formed: 1997, members: "Geoff Rickly, Tom Keeley, Steve Pedulla, Tim Payne, Tucker Rule" },
+  { name: "Hawthorne Heights",     city: "Dayton, OH",      country: "USA",        lat: 39.759, lng: -84.192, genre: "Alternative",  formed: 2001, members: "JT Woodruff, Micah Carli, Casey Calvert, Matt Ridenour, Eron Bucciarelli" },
+  { name: "Silverstein",           city: "Burlington, ON",  country: "Canada",     lat: 43.323, lng: -79.798, genre: "Alternative",  formed: 2000, members: "Shane Told, Josh Bradford, Neil Boshart, Paul Marc Rousseau, Paul Kowal" },
+  { name: "Senses Fail",           city: "Ridgewood, NJ",   country: "USA",        lat: 40.979, lng: -74.116, genre: "Alternative",  formed: 2002, members: "James Buddy Nielsen, Jason Milbank, Gavin Caswell, Zach Roach" },
+  { name: "The Used",              city: "Orem, UT",        country: "USA",        lat: 40.297, lng: -111.694, genre: "Alternative", formed: 2001, members: "Bert McCracken, Jeph Howard, Quinn Allman, Dan Whitesides" },
+
+  // --- USA: Stoner / Doom ---
+  { name: "Queens of the Stone Age",city:"Palm Desert, CA", country: "USA",        lat: 33.723, lng: -116.374, genre: "Hard Rock",   formed: 1996, members: "Josh Homme, Troy Van Leeuwen, Dean Fertita, Michael Shuman, Jon Theodore" },
+  { name: "Kyuss",                  city: "Palm Desert, CA",country: "USA",        lat: 33.720, lng: -116.371, genre: "Hard Rock",   formed: 1987, members: "John Garcia, Josh Homme, Nick Oliveri, Brant Bjork" },
+  { name: "Monster Magnet",         city: "Red Bank, NJ",  country: "USA",        lat: 40.347, lng: -74.075,  genre: "Hard Rock",   formed: 1989, members: "Dave Wyndorf, Philip Caivano, Bob Pantella, Jim Baglino" },
+  { name: "Fu Manchu",              city: "Santa Ana, CA", country: "USA",        lat: 33.745, lng: -117.867,  genre: "Hard Rock",   formed: 1985, members: "Scott Hill, Bob Balch, Brad Davis, Scott Reeder" },
+  { name: "Electric Wizard",        city: "Dorchester",    country: "UK",         lat: 50.713, lng: -2.437,   genre: "Heavy Metal",  formed: 1993, members: "Jus Oborn, Liz Buckingham, Shaun Rutter" },
+  { name: "Sleep",                  city: "San Jose, CA",  country: "USA",        lat: 37.338, lng: -121.886,  genre: "Heavy Metal", formed: 1990, members: "Al Cisneros, Matt Pike, Jason Roeder" },
+  { name: "High on Fire",           city: "Oakland, CA",   country: "USA",        lat: 37.808, lng: -122.275,  genre: "Heavy Metal", formed: 1998, members: "Matt Pike, Jeff Matz, Des Kensel" },
+  { name: "Neurosis",               city: "Oakland, CA",   country: "USA",        lat: 37.812, lng: -122.279,  genre: "Heavy Metal", formed: 1985, members: "Scott Kelly, Steve Von Till, Jason Roeder, Dave Edwardson, Noah Landis" },
+  { name: "Isis",                   city: "Boston, MA",    country: "USA",        lat: 42.362, lng: -71.060,   genre: "Heavy Metal", formed: 1997, members: "Aaron Turner, Michael Gallagher, Jeff Caxide, Aaron Harris, Clifford Meyer" },
+
+  // --- USA: Prog / Math Rock ---
+  { name: "Coheed and Cambria",    city: "Nyack, NY",      country: "USA",        lat: 41.089, lng: -73.918,  genre: "Progressive Rock", formed: 1995, members: "Claudio Sanchez, Travis Stever, Zach Cooper, Josh Eppard" },
+  { name: "The Mars Volta",        city: "El Paso, TX",    country: "USA",        lat: 31.760, lng: -106.487, genre: "Progressive Rock", formed: 2001, members: "Cedric Bixler-Zavala, Omar Rodríguez-López, Ikey Owens, Juan Alderete..." },
+  { name: "At the Drive-In",       city: "El Paso, TX",    country: "USA",        lat: 31.762, lng: -106.490, genre: "Punk Rock",    formed: 1993, members: "Cedric Bixler-Zavala, Omar Rodríguez-López, Ché Part, Paul Hinojos, Tony Hajjar" },
+  { name: "Circa Survive",         city: "Philadelphia, PA",country:"USA",        lat: 39.952, lng: -75.165,  genre: "Alternative",  formed: 2004, members: "Anthony Green, Colin Frangicetto, Brendan Ekstrom, Nick Beard, Steve Clifford" },
+  { name: "Thrice",                city: "Irvine, CA",     country: "USA",        lat: 33.684, lng: -117.826, genre: "Alternative",  formed: 1998, members: "Dustin Kensrue, Teppei Teranishi, Eddie Breckenridge, Riley Breckenridge" },
+  { name: "mewithoutYou",          city: "Philadelphia, PA",country:"USA",        lat: 39.954, lng: -75.168,  genre: "Alternative",  formed: 2000, members: "Aaron Weiss, Michael Weiss, Greg Jehanian, Rickie Mazzotta, Brandon Beaver" },
+
+  // --- USA: Country Rock / Southern Rock ---
+  { name: "Drive-By Truckers",    city: "Muscle Shoals, AL",country:"USA",        lat: 34.744, lng: -87.668,  genre: "Hard Rock",    formed: 1996, members: "Patterson Hood, Mike Cooley, Brad Morgan, Matt Patton, Jay Gonzalez" },
+  { name: "Lucero",               city: "Memphis, TN",     country: "USA",        lat: 35.149, lng: -90.052,  genre: "Alternative",  formed: 1998, members: "Ben Nichols, Brian Venable, Roy Berry, John C. Stubblefield, Rick Steff" },
+  { name: "The Black Crowes",     city: "Atlanta, GA",     country: "USA",        lat: 33.752, lng: -84.386,  genre: "Hard Rock",    formed: 1984, members: "Chris Robinson, Rich Robinson, Steve Gorman..." },
+
+  // --- UK / 欧州 追加 ---
+  { name: "Manic Street Preachers", city:"Blackwood",      country: "UK",         lat: 51.669, lng: -3.199,  genre: "Alternative",   formed: 1986, members: "James Dean Bradfield, Nicky Wire, Sean Moore" },
+  { name: "Stereophonics",         city: "Cwmaman",        country: "UK",         lat: 51.714, lng: -3.438,  genre: "Alternative",   formed: 1992, members: "Kelly Jones, Richard Jones, Stuart Cable / Jamie Morrison" },
+  { name: "Catatonia",             city: "Cardiff",        country: "UK",         lat: 51.482, lng: -3.180,  genre: "Alternative",   formed: 1992, members: "Cerys Matthews, Mark Roberts, Owen Powell, Paul Jones, Aled Richards" },
+  { name: "Keane",                 city: "Battle",         country: "UK",         lat: 50.915, lng: 0.487,   genre: "Alternative",   formed: 1997, members: "Tom Chaplin, Tim Rice-Oxley, Richard Hughes, Jesse Quin" },
+  { name: "The Kooks",             city: "Brighton",       country: "UK",         lat: 50.827, lng: -0.137,  genre: "Alternative",   formed: 2004, members: "Luke Pritchard, Hugh Harris, Alexis Nunez, Conor Deasy" },
+  { name: "The View",              city: "Dundee",         country: "UK",         lat: 56.465, lng: -2.975,  genre: "Alternative",   formed: 2005, members: "Kyle Falconer, Kieran Webster, Kieren Sherida, Pete Reilly" },
+  { name: "The Wombats",           city: "Liverpool",      country: "UK",         lat: 53.411, lng: -2.994,  genre: "Alternative",   formed: 2003, members: "Matthew Murphy, Dan Haggis, Tord Øverland Knudsen" },
+  { name: "Everything Everything", city: "Manchester",     country: "UK",         lat: 53.481, lng: -2.240,  genre: "Alternative",   formed: 2007, members: "Jonathan Higgs, Jeremy Pritchard, Michael Spearman, Alex Robertshaw" },
+  { name: "Wolf Alice",            city: "London",         country: "UK",         lat: 51.530, lng: -0.108,  genre: "Alternative",   formed: 2010, members: "Ellie Rowsell, Joff Oddie, Theo Ellis, Joel Amey" },
+  { name: "Foals",                 city: "Oxford",         country: "UK",         lat: 51.750, lng: -1.255,  genre: "Alternative",   formed: 2005, members: "Yannis Philippakis, Jack Bevan, Jimmy Smith, Edwin Congreave, Walter Gervers" },
+  { name: "The 1975",              city: "Manchester",     country: "UK",         lat: 53.484, lng: -2.247,  genre: "Alternative",   formed: 2002, members: "Matthew Healy, Adam Hann, Ross MacDonald, George Daniel" },
+  { name: "Alt-J",                 city: "Leeds",          country: "UK",         lat: 53.801, lng: -1.548,  genre: "Alternative",   formed: 2007, members: "Joe Newman, Thom Sonny Green, Gus Unger-Hamilton" },
+  { name: "Two Door Cinema Club",  city: "Bangor",         country: "UK",         lat: 54.658, lng: -5.669,  genre: "Alternative",   formed: 2007, members: "Alex Trimble, Sam Halliday, Kevin Baird" },
+  { name: "Siouxsie and the Banshees",city:"London",       country: "UK",         lat: 51.500, lng: -0.145,  genre: "Alternative",   formed: 1976, members: "Siouxsie Sioux, Steve Severin, Budgie, John McGeoch" },
+  { name: "Joy Division",          city: "Salford",        country: "UK",         lat: 53.488, lng: -2.277,  genre: "Alternative",   formed: 1976, members: "Ian Curtis, Bernard Sumner, Peter Hook, Stephen Morris" },
+  { name: "New Order",             city: "Salford",        country: "UK",         lat: 53.490, lng: -2.280,  genre: "Alternative",   formed: 1980, members: "Bernard Sumner, Peter Hook, Stephen Morris, Gillian Gilbert" },
+  { name: "Depeche Mode",          city: "Basildon",       country: "UK",         lat: 51.579, lng: 0.487,   genre: "Alternative",   formed: 1980, members: "Dave Gahan, Martin Gore, Andy Fletcher, Alan Wilder" },
+  { name: "The Prodigy",           city: "Braintree",      country: "UK",         lat: 51.878, lng: 0.550,   genre: "Alternative",   formed: 1990, members: "Keith Flint, Maxim, Liam Howlett" },
+  { name: "Ash",                   city: "Downpatrick",    country: "UK",         lat: 54.329, lng: -5.714,  genre: "Alternative",   formed: 1992, members: "Tim Wheeler, Mark Hamilton, Rick McMurray, Charlotte Hatherley" },
+
+  // --- ポルトガル ---
+  { name: "Dead Combo",            city: "Lisbon",          country: "Portugal",   lat: 38.717, lng: -9.143, genre: "Alternative",   formed: 2002, members: "Pedro Gonçalves, Tó Trips" },
+
+  // --- ギリシャ ---
+  { name: "Rotting Christ",        city: "Athens",          country: "Greece",     lat: 37.983, lng: 23.728, genre: "Heavy Metal",   formed: 1987, members: "Sakis Tolis, Themis Tolis, Giorgos Emmanuel, Kostas Heliotis" },
+
+  // --- チェコ / スロバキア ---
+  { name: "Kabát",                 city: "Prague",          country: "Czech Republic", lat: 50.088, lng: 14.420, genre: "Hard Rock",  formed: 1982, members: "Josef Vojtek, Milan Špalek, Tomáš Krulich, Radek Hurčík, Marek Dobeš" },
+
+  // --- セルビア ---
+  { name: "Riblja Čorba",          city: "Belgrade",        country: "Serbia",     lat: 44.804, lng: 20.465, genre: "Hard Rock",     formed: 1978, members: "Bora Đorđević, Vicko Milatović, Perica Zdravković, Dragan Radovanović" },
+
+  // --- ポーランド ---
+  { name: "Behemoth",              city: "Gdańsk",          country: "Poland",     lat: 54.352, lng: 18.647, genre: "Heavy Metal",   formed: 1991, members: "Nergal, Orion, Inferno, Seth" },
+  { name: "Vader",                 city: "Olsztyn",         country: "Poland",     lat: 53.777, lng: 20.480, genre: "Heavy Metal",   formed: 1983, members: "Piotr 'Peter' Wiwczarek, Marek 'Spider' Pająk, Tomasz 'Hal' Halicki, Paweł 'Paul' Jaroszewicz" },
+  { name: "Riverside",             city: "Warsaw",          country: "Poland",     lat: 52.232, lng: 21.012, genre: "Progressive Rock", formed: 2001, members: "Mariusz Duda, Piotr Kozieradzki, Michał Łapaj, Maciej Meller" },
+  { name: "Milky Chance",          city: "Kassel",          country: "Germany",    lat: 51.318, lng: 9.498,  genre: "Alternative",   formed: 2012, members: "Clemens Rehbein, Philipp Dausch" },
+
+  // ========== ソロミュージシャン ==========
+
+  // --- イギリス ---
+  { name: "David Bowie",           city: "Brixton, London", country: "UK",  lat: 51.463, lng: -0.114,  genre: "Solo", formed: 1962, members: "David Robert Jones (1947–2016)" },
+  { name: "Jeff Beck",             city: "Wallington",      country: "UK",  lat: 51.362, lng: -0.147,  genre: "Solo", formed: 1965, members: "Jeff Beck (1944–2023)" },
+  { name: "Eric Clapton",          city: "Ripley, Surrey",  country: "UK",  lat: 51.243, lng: -0.490,  genre: "Solo", formed: 1963, members: "Eric Clapton (b. 1945)" },
+  { name: "Jimmy Page",            city: "Heston",          country: "UK",  lat: 51.477, lng: -0.381,  genre: "Solo", formed: 1957, members: "Jimmy Page (b. 1944)" },
+  { name: "Pete Townshend",        city: "Chiswick, London",country: "UK",  lat: 51.493, lng: -0.265,  genre: "Solo", formed: 1968, members: "Pete Townshend (b. 1945)" },
+  { name: "Rod Stewart",           city: "Highgate, London",country: "UK",  lat: 51.572, lng: -0.145,  genre: "Solo", formed: 1961, members: "Rod Stewart (b. 1945)" },
+  { name: "Elton John",            city: "Pinner",          country: "UK",  lat: 51.592, lng: -0.380,  genre: "Solo", formed: 1962, members: "Elton John (b. 1947)" },
+  { name: "Peter Gabriel",         city: "Cobham, Surrey",  country: "UK",  lat: 51.336, lng: -0.408,  genre: "Solo", formed: 1975, members: "Peter Gabriel (b. 1950)" },
+  { name: "Phil Collins",          city: "Chiswick, London",country: "UK",  lat: 51.490, lng: -0.262,  genre: "Solo", formed: 1981, members: "Phil Collins (b. 1951)" },
+  { name: "Ozzy Osbourne",         city: "Birmingham",      country: "UK",  lat: 52.475, lng: -1.895,  genre: "Solo", formed: 1979, members: "Ozzy Osbourne (b. 1948)" },
+  { name: "Ronnie Wood",           city: "Hillingdon",      country: "UK",  lat: 51.534, lng: -0.447,  genre: "Solo", formed: 1974, members: "Ronnie Wood (b. 1947)" },
+  { name: "Gary Numan",            city: "Hammersmith",     country: "UK",  lat: 51.492, lng: -0.224,  genre: "Solo", formed: 1977, members: "Gary Numan (b. 1958)" },
+  { name: "Syd Barrett",           city: "Cambridge",       country: "UK",  lat: 52.205, lng: 0.119,   genre: "Solo", formed: 1974, members: "Syd Barrett (1946–2006)" },
+  { name: "Roger Waters",          city: "Cambridge",       country: "UK",  lat: 52.207, lng: 0.122,   genre: "Solo", formed: 1984, members: "Roger Waters (b. 1943)" },
+  { name: "Noel Gallagher",        city: "Manchester",      country: "UK",  lat: 53.484, lng: -2.242,  genre: "Solo", formed: 2011, members: "Noel Gallagher (b. 1967)" },
+  { name: "Liam Gallagher",        city: "Manchester",      country: "UK",  lat: 53.486, lng: -2.245,  genre: "Solo", formed: 2017, members: "Liam Gallagher (b. 1972)" },
+  { name: "Robert Plant",          city: "Bromwich",        country: "UK",  lat: 52.527, lng: -1.984,  genre: "Solo", formed: 1982, members: "Robert Plant (b. 1948)" },
+  { name: "Annie Lennox",          city: "Aberdeen",        country: "UK",  lat: 57.149, lng: -2.094,  genre: "Solo", formed: 1992, members: "Annie Lennox (b. 1954)" },
+  { name: "Kate Bush",             city: "Bexleyheath",     country: "UK",  lat: 51.453, lng: 0.138,   genre: "Solo", formed: 1978, members: "Kate Bush (b. 1958)" },
+  { name: "Sting",                 city: "Wallsend",        country: "UK",  lat: 54.993, lng: -1.534,  genre: "Solo", formed: 1985, members: "Sting (Gordon Matthew Thomas Sumner, b. 1951)" },
+  { name: "Thom Yorke",            city: "Wellingborough",  country: "UK",  lat: 52.302, lng: -0.692,  genre: "Solo", formed: 2006, members: "Thom Yorke (b. 1968)" },
+  { name: "Morrissey",             city: "Manchester",      country: "UK",  lat: 53.487, lng: -2.248,  genre: "Solo", formed: 1988, members: "Morrissey (b. 1959)" },
+  { name: "Ian Curtis",            city: "Macclesfield",    country: "UK",  lat: 53.258, lng: -2.124,  genre: "Solo", formed: 1977, members: "Ian Curtis (1956–1980)" },
+  { name: "Damon Albarn",          city: "Whitechapel",     country: "UK",  lat: 51.519, lng: -0.070,  genre: "Solo", formed: 2003, members: "Damon Albarn (b. 1968)" },
+  { name: "Mark Knopfler",         city: "Glasgow",         country: "UK",  lat: 55.866, lng: -4.258,  genre: "Solo", formed: 1996, members: "Mark Knopfler (b. 1949)" },
+
+  // --- アメリカ ---
+  { name: "Jimi Hendrix",          city: "Seattle, WA",     country: "USA", lat: 47.597, lng: -122.343, genre: "Solo", formed: 1963, members: "Jimi Hendrix (1942–1970)" },
+  { name: "Bruce Springsteen",     city: "Long Branch, NJ", country: "USA", lat: 40.303, lng: -73.988,  genre: "Solo", formed: 1972, members: "Bruce Springsteen (b. 1949)" },
+  { name: "Bob Dylan",             city: "Duluth, MN",      country: "USA", lat: 46.786, lng: -92.101,  genre: "Solo", formed: 1960, members: "Bob Dylan (b. 1941)" },
+  { name: "Neil Young",            city: "Omemee, ON",      country: "Canada", lat: 44.300, lng: -78.549, genre: "Solo", formed: 1966, members: "Neil Young (b. 1945)" },
+  { name: "Tom Petty",             city: "Gainesville, FL", country: "USA", lat: 29.648, lng: -82.322,  genre: "Solo", formed: 1975, members: "Tom Petty (1950–2017)" },
+  { name: "John Mellencamp",       city: "Seymour, IN",     country: "USA", lat: 38.958, lng: -85.892,  genre: "Solo", formed: 1976, members: "John Mellencamp (b. 1951)" },
+  { name: "Billy Joel",            city: "Bronx, NY",       country: "USA", lat: 40.837, lng: -73.866,  genre: "Solo", formed: 1971, members: "Billy Joel (b. 1949)" },
+  { name: "Lou Reed",              city: "Brooklyn, NY",    country: "USA", lat: 40.682, lng: -73.940,  genre: "Solo", formed: 1972, members: "Lou Reed (1942–2013)" },
+  { name: "Iggy Pop",              city: "Muskegon, MI",    country: "USA", lat: 43.234, lng: -86.248,  genre: "Solo", formed: 1969, members: "Iggy Pop (James Newell Osterberg Jr., b. 1947)" },
+  { name: "Patti Smith",           city: "Chicago, IL",     country: "USA", lat: 41.875, lng: -87.628,  genre: "Solo", formed: 1975, members: "Patti Smith (b. 1946)" },
+  { name: "Dave Grohl",            city: "Warren, OH",      country: "USA", lat: 41.237, lng: -80.818,  genre: "Solo", formed: 2004, members: "Dave Grohl (b. 1969)" },
+  { name: "Eddie Van Halen",       city: "Nijmegen",        country: "Netherlands", lat: 51.843, lng: 5.852, genre: "Solo", formed: 1977, members: "Eddie Van Halen (1955–2020)" },
+  { name: "Carlos Santana",        city: "Autlán",          country: "Mexico",  lat: 19.772, lng: -104.368, genre: "Solo", formed: 1969, members: "Carlos Santana (b. 1947)" },
+  { name: "Frank Zappa",           city: "Baltimore, MD",   country: "USA", lat: 39.287, lng: -76.608,  genre: "Solo", formed: 1966, members: "Frank Zappa (1940–1993)" },
+  { name: "Tom Waits",             city: "Pomona, CA",      country: "USA", lat: 34.055, lng: -117.750,  genre: "Solo", formed: 1973, members: "Tom Waits (b. 1949)" },
+  { name: "Jack White",            city: "Detroit, MI",     country: "USA", lat: 42.334, lng: -83.050,  genre: "Solo", formed: 2012, members: "Jack White (b. 1975)" },
+  { name: "Beck",                  city: "Los Angeles",     country: "USA", lat: 34.056, lng: -118.282,  genre: "Solo", formed: 1993, members: "Beck (b. 1970)" },
+  { name: "Lenny Kravitz",         city: "New York",        country: "USA", lat: 40.715, lng: -73.985,  genre: "Solo", formed: 1989, members: "Lenny Kravitz (b. 1964)" },
+  { name: "Marilyn Manson",        city: "Canton, OH",      country: "USA", lat: 40.797, lng: -81.374,  genre: "Solo", formed: 1989, members: "Marilyn Manson (b. 1969)" },
+  { name: "Alice Cooper",          city: "Detroit, MI",     country: "USA", lat: 42.340, lng: -83.055,  genre: "Solo", formed: 1964, members: "Alice Cooper (b. 1948)" },
+  { name: "Ted Nugent",            city: "Detroit, MI",     country: "USA", lat: 42.337, lng: -83.048,  genre: "Solo", formed: 1967, members: "Ted Nugent (b. 1948)" },
+  { name: "Meat Loaf",             city: "Dallas, TX",      country: "USA", lat: 32.780, lng: -96.800,  genre: "Solo", formed: 1971, members: "Meat Loaf (1947–2022)" },
+  { name: "Sheryl Crow",           city: "Kennett, MO",     country: "USA", lat: 36.236, lng: -89.985,  genre: "Solo", formed: 1993, members: "Sheryl Crow (b. 1962)" },
+  { name: "Alanis Morissette",     city: "Ottawa",          country: "Canada", lat: 45.421, lng: -75.690, genre: "Solo", formed: 1991, members: "Alanis Morissette (b. 1974)" },
+  { name: "Melissa Etheridge",     city: "Leavenworth, KS", country: "USA", lat: 39.311, lng: -94.923,  genre: "Solo", formed: 1988, members: "Melissa Etheridge (b. 1961)" },
+  { name: "Chris Cornell",         city: "Seattle, WA",     country: "USA", lat: 47.613, lng: -122.345, genre: "Solo", formed: 1999, members: "Chris Cornell (1964–2017)" },
+  { name: "Scott Weiland",         city: "San Jose, CA",    country: "USA", lat: 37.340, lng: -121.890, genre: "Solo", formed: 1998, members: "Scott Weiland (1967–2015)" },
+  { name: "Maynard James Keenan",  city: "Scottville, MI",  country: "USA", lat: 43.954, lng: -86.283,  genre: "Solo", formed: 2004, members: "Maynard James Keenan (b. 1964)" },
+  { name: "Layne Staley",          city: "Kirkland, WA",    country: "USA", lat: 47.682, lng: -122.209, genre: "Solo", formed: 1995, members: "Layne Staley (1967–2002)" },
+  { name: "Eddie Vedder",          city: "Evanston, IL",    country: "USA", lat: 42.047, lng: -87.687,  genre: "Solo", formed: 2007, members: "Eddie Vedder (b. 1964)" },
+  { name: "Kurt Cobain",           city: "Aberdeen, WA",    country: "USA", lat: 46.976, lng: -123.817, genre: "Solo", formed: 1988, members: "Kurt Cobain (1967–1994)" },
+  { name: "Courtney Love",         city: "San Francisco",   country: "USA", lat: 37.770, lng: -122.425, genre: "Solo", formed: 1989, members: "Courtney Love (b. 1964)" },
+  { name: "Dave Matthews",         city: "Johannesburg",    country: "South Africa", lat: -26.203, lng: 28.047, genre: "Solo", formed: 1991, members: "Dave Matthews (b. 1967)" },
+  { name: "John Mayer",            city: "Bridgeport, CT",  country: "USA", lat: 41.179, lng: -73.190,  genre: "Solo", formed: 2001, members: "John Mayer (b. 1977)" },
+
+  // --- ドイツ / 欧州 ---
+  { name: "Udo Lindenberg",        city: "Gronau",          country: "Germany", lat: 52.214, lng: 7.028,  genre: "Solo", formed: 1971, members: "Udo Lindenberg (b. 1946)" },
+  { name: "Nina Hagen",            city: "Berlin",          country: "Germany", lat: 52.524, lng: 13.410, genre: "Solo", formed: 1978, members: "Nina Hagen (b. 1955)" },
+  { name: "Falco",                 city: "Vienna",          country: "Austria", lat: 48.208, lng: 16.374, genre: "Solo", formed: 1979, members: "Falco (1957–1998)" },
+  { name: "Björk",                 city: "Reykjavik",       country: "Iceland", lat: 64.137, lng: -21.897, genre: "Solo", formed: 1993, members: "Björk (b. 1965)" },
+  { name: "Tori Amos",             city: "Newton, NC",      country: "USA", lat: 35.669, lng: -81.221,  genre: "Solo", formed: 1988, members: "Tori Amos (b. 1963)" },
+
+  // --- 日本 ---
+  { name: "吉井和哉",              city: "東京",            country: "Japan", lat: 35.699, lng: 139.716,  genre: "Solo", formed: 2007, members: "吉井和哉 (b. 1966)" },
+  { name: "桜井和寿",              city: "神奈川",          country: "Japan", lat: 35.448, lng: 139.644,  genre: "Solo", formed: 2005, members: "桜井和寿 (b. 1970)" },
+  { name: "甲本ヒロト",            city: "岡山",            country: "Japan", lat: 34.662, lng: 133.934,  genre: "Solo", formed: 2000, members: "甲本ヒロト (b. 1963)" },
+  { name: "真島昌利",              city: "神奈川",          country: "Japan", lat: 35.455, lng: 139.657,  genre: "Solo", formed: 1994, members: "真島昌利 (b. 1962)" },
+  { name: "松本孝弘",              city: "大阪",            country: "Japan", lat: 34.697, lng: 135.504,  genre: "Solo", formed: 2000, members: "松本孝弘 TAK MATSUMOTO (b. 1961)" },
+  { name: "hide",                  city: "横須賀",          country: "Japan", lat: 35.281, lng: 139.668,  genre: "Solo", formed: 1993, members: "hide (1964–1998)" },
+  { name: "Gackt",                 city: "沖縄",            country: "Japan", lat: 26.215, lng: 127.683,  genre: "Solo", formed: 1999, members: "Gackt (b. 1973)" },
+  { name: "Miyavi",                city: "大阪",            country: "Japan", lat: 34.700, lng: 135.510,  genre: "Solo", formed: 2002, members: "雅-MIYAVI- (b. 1981)" },
+  { name: "浜田省吾",              city: "広島",            country: "Japan", lat: 34.396, lng: 132.460,  genre: "Solo", formed: 1975, members: "浜田省吾 (b. 1952)" },
+  { name: "長渕剛",                city: "鹿児島",          country: "Japan", lat: 31.596, lng: 130.558,  genre: "Solo", formed: 1978, members: "長渕剛 (b. 1956)" },
+  { name: "矢沢永吉",              city: "広島",            country: "Japan", lat: 34.400, lng: 132.465,  genre: "Solo", formed: 1975, members: "矢沢永吉 (b. 1949)" },
+  { name: "忌野清志郎",            city: "東京",            country: "Japan", lat: 35.694, lng: 139.708,  genre: "Solo", formed: 1968, members: "忌野清志郎 (1951–2009)" },
+  { name: "桑田佳祐",              city: "茅ヶ崎",          country: "Japan", lat: 35.333, lng: 139.401,  genre: "Solo", formed: 1988, members: "桑田佳祐 (b. 1956)" },
+  { name: "奥田民生",              city: "広島",            country: "Japan", lat: 34.398, lng: 132.463,  genre: "Solo", formed: 1995, members: "奥田民生 (b. 1965)" },
+  { name: "SUGIZO",                city: "東京",            country: "Japan", lat: 35.688, lng: 139.700,  genre: "Solo", formed: 1999, members: "SUGIZO (b. 1969)" },
+  { name: "YOSHIKI",               city: "千葉",            country: "Japan", lat: 35.608, lng: 140.124,  genre: "Solo", formed: 1993, members: "YOSHIKI (b. 1965)" },
+
+  // ========== 日本バンド 追加 ==========
+
+  // --- ロック黎明期・レジェンド ---
+  { name: "ザ・スパイダース",      city: "大阪",   country: "Japan", lat: 34.693, lng: 135.501, genre: "Classic Rock", formed: 1961, members: "かまやつひろし, 井上堯之, 大野克夫, 田辺昭知, 堺正章, 大石吾朗" },
+  { name: "ザ・タイガース",        city: "京都",   country: "Japan", lat: 35.011, lng: 135.767, genre: "Classic Rock", formed: 1965, members: "沢田研二, 岸部一徳, 岸部修三, 森本太郎, 加橋かつみ, 瞳みのる" },
+  { name: "ザ・テンプターズ",      city: "福岡",   country: "Japan", lat: 33.590, lng: 130.401, genre: "Classic Rock", formed: 1965, members: "萩原健一, 松川純一郎, 大口広司, 大場英和, 菅原進" },
+  { name: "フラワー・トラベリン・バンド", city: "東京", country: "Japan", lat: 35.689, lng: 139.692, genre: "Hard Rock", formed: 1969, members: "ジョー山中, 石間秀機, 上月剣, ゴン藤田, 和田ジョージ" },
+  { name: "外道",                  city: "東京",   country: "Japan", lat: 35.684, lng: 139.695, genre: "Hard Rock",    formed: 1972, members: "加納秀人, 木暮秀樹, 仲野圭二, 片山秀則" },
+  { name: "BOΦWYˉ",               city: "群馬",   country: "Japan", lat: 36.395, lng: 139.068, genre: "J-Rock",       formed: 1981, members: "氷室京介, 布袋寅泰, 松井恒松, 高橋まこと" },
+  { name: "THE BLUE HEARTS",       city: "東京",   country: "Japan", lat: 35.680, lng: 139.682, genre: "Punk Rock",    formed: 1985, members: "甲本ヒロト, 真島昌利, 河ちゃん, 梶くん" },
+  { name: "THE HIGH-LOWS",         city: "東京",   country: "Japan", lat: 35.681, lng: 139.683, genre: "Punk Rock",    formed: 1995, members: "甲本ヒロト, 真島昌利, 白井幹夫, 小林和生, 前田隆" },
+  { name: "THE CROWS",             city: "東京",   country: "Japan", lat: 35.683, lng: 139.686, genre: "Punk Rock",    formed: 2008, members: "甲本ヒロト, 真島昌利" },
+  { name: "サザンオールスターズ",  city: "茅ヶ崎", country: "Japan", lat: 35.333, lng: 139.403, genre: "Classic Rock", formed: 1974, members: "桑田佳祐, 関口和之, 松田弘, 大森隆志, 原由子, 野沢秀行" },
+  { name: "RCサクセション",        city: "東京",   country: "Japan", lat: 35.696, lng: 139.709, genre: "Classic Rock", formed: 1968, members: "忌野清志郎, 仲井戸麗市, 小林和生, 新井田耕造" },
+
+  // --- 1980s ---
+  { name: "BUCK-TICK",             city: "群馬",   country: "Japan", lat: 36.391, lng: 139.062, genre: "Alternative",  formed: 1983, members: "Atsushi Sakurai, Hisashi Imai, Yutaka Higuchi, Yuuta Higuchi, Toll Yagami" },
+  { name: "PERSONZ",               city: "東京",   country: "Japan", lat: 35.691, lng: 139.706, genre: "J-Rock",       formed: 1984, members: "JILL, 本田毅, 有賀啓雄, 新田一郎" },
+  { name: "ZIGGY",                 city: "大阪",   country: "Japan", lat: 34.690, lng: 135.498, genre: "Hard Rock",    formed: 1984, members: "森重樹一, 横関敦, 長久保寛之, 今井哲也" },
+  { name: "BARBEE BOYS",           city: "東京",   country: "Japan", lat: 35.694, lng: 139.707, genre: "J-Rock",       formed: 1982, members: "杏子, コンタ, いまみちともたか, かわいKANI, 藤沼伸一" },
+  { name: "PRINCESS PRINCESS",     city: "東京",   country: "Japan", lat: 35.690, lng: 139.701, genre: "J-Rock",       formed: 1983, members: "奥居香, 岸谷香, 渡辺敦子, 富田京子, 中山加奈子" },
+  { name: "SHOW-YA",               city: "東京",   country: "Japan", lat: 35.688, lng: 139.699, genre: "Hard Rock",    formed: 1982, members: "寺田恵子, 中村美紀, 五十嵐美貴, 角田美喜, 津田直子" },
+  { name: "44MAGNUM",              city: "大阪",   country: "Japan", lat: 34.695, lng: 135.503, genre: "Hard Rock",    formed: 1978, members: "PAUL, JIMMY, BARBIE, JOE" },
+  { name: "ANTHEM",                city: "東京",   country: "Japan", lat: 35.687, lng: 139.697, genre: "Heavy Metal",  formed: 1981, members: "坂本英三, 柴田直人, 森川之雄, 大山達也, 中沢剛" },
+  { name: "LOUDNESS",              city: "大阪",   country: "Japan", lat: 34.697, lng: 135.506, genre: "Heavy Metal",  formed: 1981, members: "二井原実, 高崎晃, 山下昌良, 樋口宗孝" },
+  { name: "Dead End",              city: "大阪",   country: "Japan", lat: 34.699, lng: 135.508, genre: "Heavy Metal",  formed: 1984, members: "MORRIE, SHUGO, JOE, CRAZY COOL JOE" },
+  { name: "COLOR",                 city: "東京",   country: "Japan", lat: 35.693, lng: 139.704, genre: "J-Rock",       formed: 1986, members: "DYNAMITE TOMMY, 山崎浩司, MASAKI, TAKEMASA, 高揮" },
+  { name: "D'ERLANGER",            city: "大阪",   country: "Japan", lat: 34.698, lng: 135.507, genre: "J-Rock",       formed: 1983, members: "KIYOSHI, CIPHER, Tetsu, SEELA" },
+
+  // --- 1990s ブランキー・ミッシェルほか ---
+  { name: "Blankey Jet City",      city: "名古屋", country: "Japan", lat: 35.181, lng: 136.906, genre: "Alternative",  formed: 1990, members: "浅井健一, 照井利幸, 中村達也" },
+  { name: "ミッシェル・ガン・エレファント", city: "岡山", country: "Japan", lat: 34.660, lng: 133.932, genre: "Alternative", formed: 1990, members: "チバユウスケ, アベフトシ, ウエダユウジ, クハラカズユキ" },
+  { name: "THEE MICHELLE GUN ELEPHANT", city: "岡山", country: "Japan", lat: 34.662, lng: 133.934, genre: "Alternative", formed: 1990, members: "チバユウスケ, アベフトシ, ウエダユウジ, クハラカズユキ" },
+  { name: "東京スカパラダイスオーケストラ", city: "東京", country: "Japan", lat: 35.698, lng: 139.713, genre: "Alternative", formed: 1988, members: "谷中敦, NARGO, 川上つよし, 大森はじめ, 加藤隆志, 茂木欣一..." },
+  { name: "NUMBER GIRL",           city: "福岡",   country: "Japan", lat: 33.591, lng: 130.403, genre: "Alternative",  formed: 1995, members: "向井秀徳, 田渕ひさ子, 中尾憲太郎, アヒト・イナザワ" },
+  { name: "SUPERCAR",              city: "青森",   country: "Japan", lat: 40.822, lng: 140.747, genre: "Alternative",  formed: 1995, members: "中村弘二, 古川美季, 田沢公大, 三輪コースケ" },
+  { name: "thee michelle gun elephant", city: "岡山", country: "Japan", lat: 34.663, lng: 133.935, genre: "Alternative", formed: 1990, members: "チバユウスケ, アベフトシ, ウエダユウジ, クハラカズユキ" },
+  { name: "The Birthday",          city: "東京",   country: "Japan", lat: 35.697, lng: 139.714, genre: "Alternative",  formed: 2005, members: "チバユウスケ, クハラカズユキ, フジイケンジ, ハタヤスフミ" },
+  { name: "ROSSO",                 city: "東京",   country: "Japan", lat: 35.695, lng: 139.711, genre: "Alternative",  formed: 2003, members: "チバユウスケ, 布袋寅泰" },
+  { name: "Sads",                  city: "東京",   country: "Japan", lat: 35.692, lng: 139.707, genre: "Alternative",  formed: 1999, members: "清春, KAZU, 大島こうすけ, 翔" },
+  { name: "黒夢",                  city: "名古屋", country: "Japan", lat: 35.183, lng: 136.908, genre: "J-Rock",       formed: 1991, members: "清春, 人時" },
+  { name: "Laputa",                city: "大阪",   country: "Japan", lat: 34.701, lng: 135.510, genre: "J-Rock",       formed: 1990, members: "己龍, tomo, kohta, al" },
+  { name: "La'cryma Christi",      city: "東京",   country: "Japan", lat: 35.691, lng: 139.703, genre: "J-Rock",       formed: 1993, members: "TAKA, KOJI, SHUSE, HIRO, LEVIN" },
+  { name: "FANATIC◇CRISIS",       city: "東京",   country: "Japan", lat: 35.693, lng: 139.706, genre: "J-Rock",       formed: 1990, members: "桜火竜, KOJI, 阿部光一郎, 和哉" },
+  { name: "SHAZNA",                city: "大阪",   country: "Japan", lat: 34.700, lng: 135.509, genre: "J-Rock",       formed: 1993, members: "IZAM, NATCHIN, KONTA, DOZI" },
+  { name: "葛城京子とダウンビーツ", city: "東京",  country: "Japan", lat: 35.686, lng: 139.696, genre: "Classic Rock", formed: 1994, members: "葛城京子" },
+  { name: "The Roosters",          city: "福岡",   country: "Japan", lat: 33.588, lng: 130.398, genre: "Classic Rock", formed: 1979, members: "花田裕之, 大江慎也, 下山淳, 井上富雄, 田中一郎" },
+  { name: "頭脳警察",              city: "東京",   country: "Japan", lat: 35.685, lng: 139.694, genre: "Classic Rock", formed: 1969, members: "PANTA, TOSHI" },
+  { name: "STAR CLUB",             city: "東京",   country: "Japan", lat: 35.687, lng: 139.697, genre: "Punk Rock",    formed: 1980, members: "HIKO, T.KOMAKI, MASAYA" },
+  { name: "Laughin' Nose",         city: "大阪",   country: "Japan", lat: 34.694, lng: 135.500, genre: "Punk Rock",    formed: 1981, members: "チャーミー, PEAT, KOZY, TOMMY, NORA" },
+  { name: "COBRA",                 city: "大阪",   country: "Japan", lat: 34.696, lng: 135.504, genre: "Punk Rock",    formed: 1982, members: "勝野壮一朗, MONTA, EIJI, 佐田文雄" },
+  { name: "FRICTION",              city: "東京",   country: "Japan", lat: 35.686, lng: 139.696, genre: "Punk Rock",    formed: 1978, members: "Reck, チコ・ヒゲ" },
+  { name: "SS",                    city: "福岡",   country: "Japan", lat: 33.592, lng: 130.405, genre: "Punk Rock",    formed: 1980, members: "Micky Curtis, もんた, よしのぶ" },
+  { name: "NICOTINE",              city: "東京",   country: "Japan", lat: 35.683, lng: 139.690, genre: "Punk Rock",    formed: 1988, members: "TAKUYA, TOMO, MASAMI, HIRO" },
+  { name: "ガガガSP",              city: "大阪",   country: "Japan", lat: 34.692, lng: 135.496, genre: "Punk Rock",    formed: 1996, members: "コザック前田, 岡本浩二, 北田昌宏, 水野和也" },
+  { name: "175R",                  city: "沖縄",   country: "Japan", lat: 26.213, lng: 127.681, genre: "Punk Rock",    formed: 1999, members: "SHOGO, SASSY, MASAYA, KANAME" },
+  { name: "BACK DROP BOMB",        city: "京都",   country: "Japan", lat: 35.013, lng: 135.769, genre: "Punk Rock",    formed: 1994, members: "SHUJI, KATA, YUGO, AKI, DJ BAKU" },
+  { name: "HUSKING BEE",           city: "北海道", country: "Japan", lat: 43.065, lng: 141.354, genre: "Punk Rock",    formed: 1993, members: "磯部正文, 甲斐やすひろ, 大久保伸隆, 宮田岳" },
+  { name: "DOPING PANDA",          city: "東京",   country: "Japan", lat: 35.694, lng: 139.709, genre: "Alternative",  formed: 1997, members: "ハルイチ, FURUI RIICHI, ユーイチ" },
+  { name: "BEAT CRUSADERS",        city: "東京",   country: "Japan", lat: 35.692, lng: 139.706, genre: "Punk Rock",    formed: 1995, members: "HIDEKI, TEEDA, RIKIJI, CASTELA, KOHSHI" },
+  { name: "FLiP",                  city: "大阪",   country: "Japan", lat: 34.699, lng: 135.507, genre: "Punk Rock",    formed: 2006, members: "渦井シオン, KAZZ, MINAMI, NANA, TOMOKO" },
+  { name: "JUDY AND MARY",         city: "東京",   country: "Japan", lat: 35.690, lng: 139.702, genre: "J-Rock",       formed: 1991, members: "YUKI, TAKUYA, 恩田快人, 五十嵐公太" },
+  { name: "WANDS",                 city: "東京",   country: "Japan", lat: 35.688, lng: 139.699, genre: "J-Rock",       formed: 1990, members: "上杉昇, 柴崎浩, 大島康祐" },
+  { name: "T.M.NETWORK",          city: "東京",   country: "Japan", lat: 35.687, lng: 139.698, genre: "J-Rock",       formed: 1983, members: "小室哲哉, 宇都宮隆, 木根尚登" },
+  { name: "FIELD OF VIEW",         city: "東京",   country: "Japan", lat: 35.689, lng: 139.700, genre: "J-Rock",       formed: 1994, members: "浅岡雄也, 佐藤清喜, DONT" },
+  { name: "大黒摩季",              city: "北海道", country: "Japan", lat: 43.067, lng: 141.356, genre: "Solo",         formed: 1992, members: "大黒摩季 (b. 1969)" },
+  { name: "ECHOES",                city: "東京",   country: "Japan", lat: 35.686, lng: 139.695, genre: "J-Rock",       formed: 1983, members: "辻仁成, KOJI, 岡本竜二, 石川伸一" },
+  { name: "THE STREET SLIDERS",    city: "東京",   country: "Japan", lat: 35.693, lng: 139.706, genre: "Classic Rock", formed: 1980, members: "蘭丸, ハリー, JAMES, BLUES" },
+  { name: "ゼルダ",                city: "東京",   country: "Japan", lat: 35.691, lng: 139.705, genre: "Alternative",  formed: 1979, members: "桜井扶佐子, 国武優, 坂本由利子, 吉野悦世" },
+  { name: "UP-BEAT",               city: "兵庫",   country: "Japan", lat: 34.690, lng: 135.195, genre: "J-Rock",       formed: 1982, members: "広石武彦, 沖野公平, 吉田征也, 平川達也" },
+  { name: "The Alfee",             city: "東京",   country: "Japan", lat: 35.695, lng: 139.710, genre: "Classic Rock", formed: 1973, members: "高見沢俊彦, 坂崎幸之助, 桜井賢" },
+  { name: "OUTRAGE",               city: "大阪",   country: "Japan", lat: 34.701, lng: 135.512, genre: "Heavy Metal",  formed: 1987, members: "橘高文彦, 若林純士, 末光健司, 加護野雅史" },
+  { name: "EDGE OF SPIRIT",        city: "東京",   country: "Japan", lat: 35.686, lng: 139.697, genre: "Heavy Metal",  formed: 1993, members: "水谷公生, 中西圭三" },
+
+  // --- 2000s ---
+  { name: "FLOW",                  city: "大分",   country: "Japan", lat: 33.238, lng: 131.607, genre: "J-Rock",       formed: 1998, members: "KEIGO, TAKE, GOT'S, IWA-I, KOHSHI" },
+  { name: "Stance Punks",          city: "東京",   country: "Japan", lat: 35.689, lng: 139.701, genre: "Punk Rock",    formed: 1998, members: "nao, teru, takashi, izumi" },
+  { name: "TEENAGE LOSERS",        city: "東京",   country: "Japan", lat: 35.691, lng: 139.704, genre: "Punk Rock",    formed: 2001, members: "RYUJI, RYUICHI, YUKI" },
+  { name: "ORANGE RANGE",          city: "沖縄",   country: "Japan", lat: 26.214, lng: 127.682, genre: "Alternative",  formed: 2000, members: "YAMATO, HIROKI, RYO, NAOTO, YOH" },
+  { name: "175R",                  city: "沖縄",   country: "Japan", lat: 26.216, lng: 127.684, genre: "Punk Rock",    formed: 1999, members: "SHOGO, SASSY, MASAYA, KANAME" },
+  { name: "The BONEZ",             city: "東京",   country: "Japan", lat: 35.694, lng: 139.708, genre: "Punk Rock",    formed: 2013, members: "Jesse, Yuki, T$UYO$HI, ZAX" },
+  { name: "POLYSICS",              city: "東京",   country: "Japan", lat: 35.696, lng: 139.711, genre: "Alternative",  formed: 1999, members: "ハヤシ, カヨ, フミ, ヤノ" },
+  { name: "eastern youth",         city: "北海道", country: "Japan", lat: 43.062, lng: 141.350, genre: "Alternative",  formed: 1988, members: "吉野寿, 村田シャーク秀一, 田森篤哉" },
+  { name: "LUNKHEAD",              city: "東京",   country: "Japan", lat: 35.692, lng: 139.707, genre: "Alternative",  formed: 2000, members: "小山田壮平, 多田慎也, 田中悠二, 森下拓也" },
+  { name: "andymori",              city: "東京",   country: "Japan", lat: 35.695, lng: 139.712, genre: "Alternative",  formed: 2006, members: "小山田壮平, 藤原寛, 上井雄太" },
+  { name: "フジファブリック",      city: "山梨",   country: "Japan", lat: 35.664, lng: 138.568, genre: "Alternative",  formed: 2000, members: "志村正彦, 山内総一郎, 加藤慎一, 金澤ダイスケ" },
+  { name: "くるり",                city: "京都",   country: "Japan", lat: 35.014, lng: 135.771, genre: "Alternative",  formed: 1996, members: "岸田繁, 佐藤征史, ファンファン" },
+  { name: "スピッツ",              city: "東京",   country: "Japan", lat: 35.697, lng: 139.713, genre: "Alternative",  formed: 1987, members: "草野マサムネ, 三輪テツヤ, 田村明浩, 崎山龍男" },
+  { name: "GOING UNDER GROUND",    city: "埼玉",   country: "Japan", lat: 35.857, lng: 139.649, genre: "Alternative",  formed: 1994, members: "松本素生, 中澤寛規, 石原聡, 竹森マサユキ" },
+  { name: "MONGOL800",             city: "沖縄",   country: "Japan", lat: 26.210, lng: 127.679, genre: "Punk Rock",    formed: 1998, members: "川上洋平, 上江洌清作, 山田亮" },
+  { name: "ACIDMAN",               city: "埼玉",   country: "Japan", lat: 35.860, lng: 139.652, genre: "Alternative",  formed: 1997, members: "大木伸夫, 浦山一悟, 佐藤雅俊" },
+  { name: "凛として時雨",          city: "埼玉",   country: "Japan", lat: 35.861, lng: 139.655, genre: "Alternative",  formed: 2002, members: "TK, 345, ピエール中野" },
+  { name: "the band apart",        city: "東京",   country: "Japan", lat: 35.693, lng: 139.707, genre: "Alternative",  formed: 1998, members: "荒井岳史, 木暮栄一, 川崎亘一, 原昌和" },
+  { name: "People In The Box",     city: "東京",   country: "Japan", lat: 35.695, lng: 139.710, genre: "Alternative",  formed: 2003, members: "波多野裕文, 山口大吾, 福原数人" },
+  { name: "9mm Parabellum Bullet", city: "神奈川", country: "Japan", lat: 35.451, lng: 139.649, genre: "Alternative",  formed: 2004, members: "菅原卓郎, 滝善充, かみじょうちひろ, 中村和彦" },
+  { name: "the telephones",        city: "東京",   country: "Japan", lat: 35.698, lng: 139.715, genre: "Alternative",  formed: 2005, members: "石毛輝, 松本誠二, 長島涼平, 岡本伸明" },
+  { name: "TOTALFAT",              city: "東京",   country: "Japan", lat: 35.690, lng: 139.703, genre: "Punk Rock",    formed: 2002, members: "Shun, Jose, Bunta, Miy" },
+  { name: "Nothing's Carved In Stone", city: "茨城", country: "Japan", lat: 36.342, lng: 140.448, genre: "Alternative", formed: 2008, members: "村松拓, 生形真一, 大喜多崇規, 黒川亮介" },
+  { name: "dustbox",               city: "静岡",   country: "Japan", lat: 34.977, lng: 138.383, genre: "Punk Rock",    formed: 1999, members: "SUGA, NAOKI, TERU" },
+  { name: "THE BACK HORN",         city: "栃木",   country: "Japan", lat: 36.566, lng: 139.883, genre: "Alternative",  formed: 1998, members: "山田将司, 松田晋二, 菅波栄純, 岡峰光舟" },
+  { name: "Base Ball Bear",        city: "東京",   country: "Japan", lat: 35.697, lng: 139.714, genre: "Alternative",  formed: 2001, members: "小出祐介, 関根史織, 堀之内大介" },
+  { name: "NICO Touches the Walls",city: "岡山",   country: "Japan", lat: 34.661, lng: 133.933, genre: "Alternative",  formed: 2004, members: "光村龍哉, 坂倉心悟, 辻村友晴, 対馬祥太郎" },
+  { name: "DOES",                  city: "富山",   country: "Japan", lat: 36.696, lng: 137.211, genre: "J-Rock",       formed: 2002, members: "氏家啓, evo, nob" },
+  { name: "THE ORAL CIGARETTES",   city: "奈良",   country: "Japan", lat: 34.685, lng: 135.832, genre: "Alternative",  formed: 2009, members: "山中拓也, 鈴木重伸, 中西雅哉, あきらかにあきら" },
+  { name: "Crossfaith",            city: "大阪",   country: "Japan", lat: 34.702, lng: 135.513, genre: "Heavy Metal",  formed: 2006, members: "Kenta Koie, Kazuki Takemura, Terufumi Tamano, Hiroki Ikegawa, Tatsuya Amano" },
+  { name: "MY FIRST STORY",        city: "大阪",   country: "Japan", lat: 34.700, lng: 135.511, genre: "J-Rock",       formed: 2011, members: "Hiro, Nob, Teru, Chemy" },
+  { name: "BLUE ENCOUNT",          city: "熊本",   country: "Japan", lat: 32.804, lng: 130.710, genre: "Alternative",  formed: 2004, members: "田邊駿一, 江口雄也, 辻村勇太, 高村佳秀" },
+  { name: "KANA-BOON",             city: "大阪",   country: "Japan", lat: 34.703, lng: 135.515, genre: "Alternative",  formed: 2008, members: "谷口鮪, 小泉貴裕, 古賀隼斗, 飯田祐馬" },
+  { name: "MAN WITH A MISSION",    city: "東京",   country: "Japan", lat: 35.699, lng: 139.718, genre: "Alternative",  formed: 2010, members: "Tokyo Tanaka, Jean-Ken Johnny, Kamikaze Boy, DJ Santa Monica, Spear Rib" },
+  { name: "BiSH",                  city: "東京",   country: "Japan", lat: 35.700, lng: 139.720, genre: "Alternative",  formed: 2015, members: "アイナ・ジ・エンド, セントチヒロ・チッチ, モモコグミカンパニー, ユイ・ガ・ドクソン, リンリン, ハシヤスメ・アツコ" },
+  { name: "Creepy Nuts",           city: "大阪",   country: "Japan", lat: 34.698, lng: 135.508, genre: "Alternative",  formed: 2014, members: "R-指定, DJ松永" },
+  { name: "ヤバイTシャツ屋さん",   city: "大阪",   country: "Japan", lat: 34.705, lng: 135.517, genre: "Punk Rock",    formed: 2012, members: "こやまたくや, しばたありぼぼ, もりもりもと" },
+  { name: "マカロニえんぴつ",      city: "東京",   country: "Japan", lat: 35.701, lng: 139.721, genre: "Alternative",  formed: 2012, members: "はっとり, 田辺由明, 長谷川大喜, 高野賢也" },
+  { name: "SHISHAMO",              city: "神奈川", country: "Japan", lat: 35.455, lng: 139.660, genre: "Alternative",  formed: 2010, members: "宮崎朝子, 吉川美冴貴, 松岡彩" },
+  { name: "ズーカラデル",          city: "北海道", country: "Japan", lat: 43.063, lng: 141.352, genre: "Alternative",  formed: 2013, members: "吉田崇展, 川島健太郎, 楠木了, 鈴木龍太" },
+  { name: "mol-74",                city: "京都",   country: "Japan", lat: 35.015, lng: 135.772, genre: "Alternative",  formed: 2013, members: "武市和希, 中條健士, 田貝央, 稲田周大" },
+  { name: "Saucy Dog",             city: "島根",   country: "Japan", lat: 35.470, lng: 133.053, genre: "Alternative",  formed: 2013, members: "石原慎也, せとゆいか, ケツノシンタロウ" },
+  { name: "never young beach",     city: "東京",   country: "Japan", lat: 35.702, lng: 139.723, genre: "Alternative",  formed: 2013, members: "安部勇磨, 松島皓, 寺沢功一, 高岡雄二, 新井仁之" },
+  { name: "WONK",                  city: "東京",   country: "Japan", lat: 35.703, lng: 139.724, genre: "Alternative",  formed: 2013, members: "江﨑文武, 荒田洸, 長塚健斗, 井上幹" },
+  { name: "Tempalay",              city: "東京",   country: "Japan", lat: 35.704, lng: 139.725, genre: "Alternative",  formed: 2014, members: "小原綾斗, AAAMYYY, 藤本夏樹" },
+  { name: "Pedro",                 city: "東京",   country: "Japan", lat: 35.705, lng: 139.726, genre: "Punk Rock",    formed: 2017, members: "アイナ・ジ・エンド" },
+  { name: "Alexandros",            city: "大阪",   country: "Japan", lat: 34.706, lng: 135.518, genre: "Alternative",  formed: 2007, members: "川上洋平, 磯部寛之, 白井眞輝, 庄村聡泰" },
+  { name: "ストレイテナー",        city: "東京",   country: "Japan", lat: 35.696, lng: 139.712, genre: "Alternative",  formed: 1999, members: "ホリエアツシ, 大山純, 日向秀和, ナカヤマシンペイ" },
+  { name: "TOTALFAT",              city: "東京",   country: "Japan", lat: 35.691, lng: 139.705, genre: "Punk Rock",    formed: 2002, members: "Shun, Jose, Bunta, Miy" },
+];
+
+
+// 地図初期化
+const map = L.map('map', {
+  center: [30, 10],
+  zoom: 2,
+  zoomControl: true,
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap © CARTO',
+  maxZoom: 18,
+}).addTo(map);
+
+// 都市ごとにバンドをグループ化
+function groupByLocation(bandList) {
+  const groups = {};
+  bandList.forEach(band => {
+    const key = `${band.lat}_${band.lng}`;
+    if (!groups[key]) groups[key] = { lat: band.lat, lng: band.lng, city: band.city, country: band.country, bands: [] };
+    groups[key].bands.push(band);
+  });
+  return Object.values(groups);
+}
+
+let markers = [];
+
+function createMarkerIcon(count) {
+  const cls = count > 1 ? 'band-marker multiple' : 'band-marker';
+  return L.divIcon({ className: '', html: `<div class="${cls}"></div>`, iconSize: [14, 14], iconAnchor: [7, 7] });
+}
+
+function buildPopupHTML(group) {
+  const flagMap = { UK: '🇬🇧', USA: '🇺🇸', Canada: '🇨🇦', Australia: '🇦🇺', Germany: '🇩🇪', Sweden: '🇸🇪', Finland: '🇫🇮', Ireland: '🇮🇪', Spain: '🇪🇸', Italy: '🇮🇹', Norway: '🇳🇴', Brazil: '🇧🇷', Japan: '🇯🇵' };
+  const flag = flagMap[group.country] || '🌍';
+  let html = `<div class="popup-content">`;
+  html += `<div class="popup-location">${flag} ${group.city}, ${group.country}</div>`;
+  group.bands.forEach(b => {
+    html += `<div class="band-entry">
+      <div class="band-name">🎸 ${b.name}</div>
+      <div class="band-meta">${b.genre === 'Solo' ? '活動開始' : '結成'}: ${b.formed}年 ／ ${b.members}</div>
+      <div class="band-genre">${b.genre}</div>
+    </div>`;
+  });
+  html += `</div>`;
+  return html;
+}
+
+function renderMarkers(filteredBands) {
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+
+  const groups = groupByLocation(filteredBands);
+  groups.forEach(group => {
+    const marker = L.marker([group.lat, group.lng], {
+      icon: createMarkerIcon(group.bands.length),
+    });
+    marker.bindPopup(buildPopupHTML(group), { maxWidth: 300 });
+    marker.addTo(map);
+    markers.push(marker);
+  });
+}
+
+// --- フィルター状態 ---
+let activeGenre = 'all';
+let activeDecade = 'all';
+let searchQuery = '';
+
+function getFiltered() {
+  const q = searchQuery.toLowerCase();
+  return bands.filter(b => {
+    const genreOk = activeGenre === 'all' || b.genre === activeGenre;
+    const decadeOk = activeDecade === 'all' || (b.formed >= activeDecade && b.formed < activeDecade + 10);
+    const searchOk = !q || b.name.toLowerCase().includes(q) || b.city.toLowerCase().includes(q) || b.country.toLowerCase().includes(q) || b.members.toLowerCase().includes(q);
+    return genreOk && decadeOk && searchOk;
+  });
+}
+
+function applyFilters() {
+  const filtered = getFiltered();
+  renderMarkers(filtered);
+
+  // ラベル更新
+  const label = activeDecade === 'all' ? 'すべて' : `${activeDecade}年代`;
+  document.getElementById('decadeLabel').textContent = label;
+  const cnt = filtered.length;
+  document.getElementById('decadeCount').textContent = cnt > 0 ? `${cnt}バンド表示中` : 'バンドなし';
+}
+
+// 初期描画
+applyFilters();
+
+// ジャンルフィルター
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeGenre = btn.dataset.genre;
+    applyFilters();
+  });
+});
+
+// --- 年代ボタン生成 ---
+const decades = ['all', 1960, 1970, 1980, 1990, 2000, 2010, 2020];
+const decadeBtns = document.getElementById('decadeBtns');
+
+decades.forEach(d => {
+  const btn = document.createElement('button');
+  btn.className = 'decade-btn' + (d === 'all' ? ' active' : '');
+  btn.textContent = d === 'all' ? 'すべて' : `${d}s`;
+  btn.dataset.decade = d;
+  btn.addEventListener('click', () => {
+    stopPlay();
+    setDecade(d === 'all' ? 'all' : Number(d));
+  });
+  decadeBtns.appendChild(btn);
+});
+
+function setDecade(d) {
+  activeDecade = d;
+  document.querySelectorAll('.decade-btn').forEach(b => {
+    b.classList.toggle('active', String(b.dataset.decade) === String(d));
+  });
+  applyFilters();
+}
+
+// --- 自動再生 ---
+let playTimer = null;
+const decadeOrder = [1960, 1970, 1980, 1990, 2000, 2010, 2020];
+let playIndex = 0;
+const playBtn = document.getElementById('playBtn');
+
+function stopPlay() {
+  if (playTimer) { clearInterval(playTimer); playTimer = null; }
+  playBtn.textContent = '▶';
+}
+
+playBtn.addEventListener('click', () => {
+  if (playTimer) {
+    stopPlay();
+    return;
+  }
+  playBtn.textContent = '⏹';
+  playIndex = 0;
+  setDecade(decadeOrder[playIndex]);
+
+  playTimer = setInterval(() => {
+    playIndex++;
+    if (playIndex >= decadeOrder.length) {
+      stopPlay();
+      setDecade('all');
+      return;
+    }
+    setDecade(decadeOrder[playIndex]);
+  }, 2000);
+});
+
+// --- 検索機能 ---
+const searchInput   = document.getElementById('searchInput');
+const searchClear   = document.getElementById('searchClear');
+const searchDropdown= document.getElementById('searchDropdown');
+const searchResultCount = document.getElementById('searchResultCount');
+
+function highlight(text, query) {
+  if (!query) return text;
+  const re = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  return text.replace(re, '<mark>$1</mark>');
+}
+
+function updateDropdown(q) {
+  if (!q) {
+    searchDropdown.classList.remove('open');
+    searchDropdown.innerHTML = '';
+    searchResultCount.textContent = '';
+    return;
+  }
+  const ql = q.toLowerCase();
+  const matched = bands.filter(b =>
+    b.name.toLowerCase().includes(ql) ||
+    b.city.toLowerCase().includes(ql) ||
+    b.country.toLowerCase().includes(ql) ||
+    b.members.toLowerCase().includes(ql)
+  ).slice(0, 12);
+
+  searchResultCount.textContent = matched.length ? `${matched.length}件` : '該当なし';
+
+  if (!matched.length) {
+    searchDropdown.innerHTML = `<div class="dropdown-no-result">「${q}」に一致するアーティストが見つかりません</div>`;
+    searchDropdown.classList.add('open');
+    return;
+  }
+
+  searchDropdown.innerHTML = matched.map(b => `
+    <div class="dropdown-item" data-lat="${b.lat}" data-lng="${b.lng}" data-name="${b.name}">
+      <div class="dropdown-name">${highlight(b.name, q)}</div>
+      <div class="dropdown-sub">${b.city}, ${b.country} ／ ${b.genre} ／ ${b.formed}年</div>
+    </div>
+  `).join('');
+  searchDropdown.classList.add('open');
+
+  searchDropdown.querySelectorAll('.dropdown-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const lat = parseFloat(el.dataset.lat);
+      const lng = parseFloat(el.dataset.lng);
+      const name = el.dataset.name;
+      searchInput.value = name;
+      searchQuery = name;
+      searchDropdown.classList.remove('open');
+      searchClear.style.display = 'block';
+      map.setView([lat, lng], 6, { animate: true });
+      applyFilters();
+      // 該当マーカーのポップアップを開く
+      setTimeout(() => {
+        markers.forEach(m => {
+          const ll = m.getLatLng();
+          if (Math.abs(ll.lat - lat) < 0.01 && Math.abs(ll.lng - lng) < 0.01) {
+            m.openPopup();
+          }
+        });
+      }, 600);
+    });
+  });
+}
+
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.trim();
+  searchQuery = q;
+  searchClear.style.display = q ? 'block' : 'none';
+  updateDropdown(q);
+  applyFilters();
+});
+
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    searchDropdown.classList.remove('open');
+  }
+});
+
+searchClear.addEventListener('click', () => {
+  searchInput.value = '';
+  searchQuery = '';
+  searchClear.style.display = 'none';
+  searchResultCount.textContent = '';
+  searchDropdown.classList.remove('open');
+  applyFilters();
+  searchInput.focus();
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-wrapper')) {
+    searchDropdown.classList.remove('open');
+  }
+});
+</script>
+</body>
+</html>
