@@ -18,6 +18,22 @@
   <meta name="twitter:title" content="ロックンロールマップ | 世界のロックバンド出身地マップ" />
   <meta name="twitter:description" content="世界600組以上のロックバンド出身地マップ。ジャンル・年代・検索で絞り込み可能。" />
 
+  <!-- 構造化データ (Google検索でリッチ表示) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "ロックンロールマップ",
+    "description": "世界700組以上のロックバンド・アーティストの出身地をインタラクティブな世界地図で見られるサイト。ジャンル・年代・バンド名で絞り込み可能。",
+    "url": "https://mosh696job-lab.github.io/rocknroll-map/",
+    "applicationCategory": "EntertainmentApplication",
+    "operatingSystem": "Web",
+    "inLanguage": "ja",
+    "keywords": "ロックバンド,出身地,世界地図,ロック,ヘヴィメタル,パンクロック,J-Rock,Led Zeppelin,Nirvana,X JAPAN",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" }
+  }
+  </script>
+
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -399,6 +415,49 @@
 
     .dot-single { background: #cc3333; border: 2px solid #ff6666; }
     .dot-multi  { background: #ff8800; border: 2px solid #ffaa44; }
+
+    /* ===== モバイル対応 ===== */
+    @media (max-width: 640px) {
+      header { padding: 10px 14px; gap: 10px; }
+      header h1 { font-size: 1.15rem; }
+      header .subtitle { font-size: 0.75rem; }
+      .guitar-icon { font-size: 1.5rem; }
+
+      /* 年代バー：横スクロール */
+      .decade-bar { padding: 8px 12px 10px; }
+      .decade-header { margin-bottom: 6px; }
+      .decade-current { font-size: 0.9rem; }
+      .timeline-wrapper { gap: 8px; }
+      .decade-btns { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+      .decade-btns::-webkit-scrollbar { display: none; }
+      .decade-btn { font-size: 0.72rem; padding: 4px 9px; white-space: nowrap; flex-shrink: 0; }
+      .play-btn { width: 28px; height: 28px; font-size: 0.8rem; flex-shrink: 0; }
+
+      /* 検索バー */
+      .search-bar { padding: 6px 12px; }
+      .search-wrapper { max-width: 100%; }
+      #searchInput { font-size: 0.82rem; }
+
+      /* ジャンルフィルター：横スクロール */
+      .filter-bar {
+        padding: 6px 12px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 6px;
+      }
+      .filter-bar::-webkit-scrollbar { display: none; }
+      .filter-bar label { flex-shrink: 0; }
+      .filter-btn { font-size: 0.72rem; padding: 4px 10px; white-space: nowrap; flex-shrink: 0; }
+
+      /* 凡例：小さく */
+      .legend { padding: 6px 10px; font-size: 0.68rem; bottom: 16px; right: 6px; }
+      .legend-dot { width: 9px; height: 9px; }
+
+      /* ポップアップ */
+      .popup-content { min-width: 180px; }
+      .band-name { font-size: 0.9rem; }
+      .band-meta { font-size: 0.72rem; }
+    }
   </style>
 </head>
 <body>
