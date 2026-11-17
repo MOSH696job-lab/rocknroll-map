@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ロックンロールマップ | 世界のロックバンド出身地マップ</title>
-  <meta name="description" content="世界600組以上のロックバンド・アーティストの出身地をインタラクティブな世界地図で見られるサイト。Led Zeppelin、Nirvana、X JAPANなどジャンル・年代で絞り込み可能。" />
+  <meta name="description" content="世界700組以上のロックバンド・アーティストの出身地をインタラクティブな世界地図で見られるサイト。Led Zeppelin、Nirvana、X JAPANなどジャンル・年代で絞り込み可能。" />
   <meta name="keywords" content="ロックバンド, 出身地, 世界地図, ロック, ヘヴィメタル, パンクロック, J-Rock, ビジュアル系, Led Zeppelin, Nirvana, X JAPAN, ミッシェルガンエレファント, ブランキージェットシティ" />
   <meta name="author" content="ロックンロールマップ" />
   <meta name="google-site-verification" content="730yqSHB8V9dhAhqZfwUs3n_ry55yqnaMWiJnym51H4" />
@@ -12,12 +12,12 @@
 
   <!-- OGP (SNSでシェアしたとき用) -->
   <meta property="og:title" content="ロックンロールマップ | 世界のロックバンド出身地マップ" />
-  <meta property="og:description" content="世界600組以上のロックバンド・アーティストの出身地をインタラクティブな世界地図で確認できます。" />
+  <meta property="og:description" content="世界700組以上のロックバンド・アーティストの出身地をインタラクティブな世界地図で確認できます。" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://mosh696job-lab.github.io/rocknroll-map/" />
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="ロックンロールマップ | 世界のロックバンド出身地マップ" />
-  <meta name="twitter:description" content="世界600組以上のロックバンド出身地マップ。ジャンル・年代・検索で絞り込み可能。" />
+  <meta name="twitter:description" content="世界700組以上のロックバンド出身地マップ。ジャンル・年代・検索で絞り込み可能。" />
 
   <!-- 構造化データ (Google検索でリッチ表示) -->
   <script type="application/ld+json">
@@ -417,6 +417,10 @@
     .dot-single { background: #cc3333; border: 2px solid #ff6666; }
     .dot-multi  { background: #ff8800; border: 2px solid #ffaa44; }
 
+    .header-nav { margin-left: auto; }
+    .header-nav a { color: #ddd; text-decoration: none; font-size: 0.85rem; border: 1px solid #552222; padding: 5px 10px; border-radius: 6px; white-space: nowrap; }
+    .header-nav a:hover { background: #3a0000; color: #fff; }
+
     /* ===== モバイル対応 ===== */
     @media (max-width: 640px) {
       header { padding: 10px 14px; gap: 10px; }
@@ -469,6 +473,7 @@
     <h1>ロックンロールマップ</h1>
     <div class="subtitle">世界のロックバンド出身地マップ</div>
   </div>
+  <nav class="header-nav"><a href="bands/">📖 バンド一覧</a></nav>
 </header>
 
 <div class="decade-bar">
@@ -1587,27 +1592,37 @@ function updateDropdown(q) {
 
   searchDropdown.querySelectorAll('.dropdown-item').forEach(el => {
     el.addEventListener('click', () => {
-      const lat = parseFloat(el.dataset.lat);
-      const lng = parseFloat(el.dataset.lng);
-      const name = el.dataset.name;
-      searchInput.value = name;
-      searchQuery = name;
-      searchDropdown.classList.remove('open');
-      searchClear.style.display = 'block';
-      map.setView([lat, lng], 6, { animate: true });
-      applyFilters();
-      // 該当マーカーのポップアップを開く
-      setTimeout(() => {
-        markers.forEach(m => {
-          const ll = m.getLatLng();
-          if (Math.abs(ll.lat - lat) < 0.01 && Math.abs(ll.lng - lng) < 0.01) {
-            m.openPopup();
-          }
-        });
-      }, 600);
+      focusBand(el.dataset.name, parseFloat(el.dataset.lat), parseFloat(el.dataset.lng));
     });
   });
 }
+
+// 指定したバンドに地図を寄せてポップアップを開く
+function focusBand(name, lat, lng) {
+  searchInput.value = name;
+  searchQuery = name;
+  searchDropdown.classList.remove('open');
+  searchClear.style.display = 'block';
+  map.setView([lat, lng], 6, { animate: true });
+  applyFilters();
+  // 該当マーカーのポップアップを開く
+  setTimeout(() => {
+    markers.forEach(m => {
+      const ll = m.getLatLng();
+      if (Math.abs(ll.lat - lat) < 0.01 && Math.abs(ll.lng - lng) < 0.01) {
+        m.openPopup();
+      }
+    });
+  }, 600);
+}
+
+// バンドページからのリンク（?band=バンド名）で開いたとき
+(() => {
+  const name = new URLSearchParams(location.search).get('band');
+  if (!name) return;
+  const b = bands.find(x => x.name === name);
+  if (b) focusBand(b.name, b.lat, b.lng);
+})();
 
 searchInput.addEventListener('input', () => {
   const q = searchInput.value.trim();
